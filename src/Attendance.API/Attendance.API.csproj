@@ -4,4 +4,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Attendance.Domain\Attendance.Domain.csproj" />
+    <ProjectReference Include="..\Attendance.Infrastructure\Attendance.Infrastructure.csproj" />
+  </ItemGroup>
 </Project>
