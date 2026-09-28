@@ -204,9 +204,9 @@ function EmployeeDetails({employee,branches,departments,employees,onClose,onSubm
       <h3>Employment Details</h3>
       <input name="designation" defaultValue={employee.designation ?? ""} placeholder="Designation"/>
       <select name="employmentType" defaultValue={employee.employmentType ?? ""}><option value="">Employment type</option><option>Permanent</option><option>Probation</option><option>Contract</option><option>Temporary</option><option>Intern</option></select>
-      <Select name="branchId" placeholder="Branch" optional items={branches.map(x=>({id:x.id,label:x.branchName}))}/>
-      <Select name="departmentId" placeholder="Department" optional items={departments.map(x=>({id:x.id,label:x.departmentName}))}/>
-      <Select name="reportingManagerId" placeholder="Reporting manager" optional items={employees.filter(x=>x.id!==employee.id).map(x=>({id:x.id,label:x.employeeCode+" · "+x.fullName}))}/>
+      <Select name="branchId" placeholder="Branch" optional defaultValue={employee.branchId} items={branches.map(x=>({id:x.id,label:x.branchName}))}/>
+      <Select name="departmentId" placeholder="Department" optional defaultValue={employee.departmentId} items={departments.map(x=>({id:x.id,label:x.departmentName}))}/>
+      <Select name="reportingManagerId" placeholder="Reporting manager" optional defaultValue={employee.reportingManagerId} items={employees.filter(x=>x.id!==employee.id).map(x=>({id:x.id,label:x.employeeCode+" · "+x.fullName}))}/>
       <input type="date" name="joiningDate" defaultValue={employee.joiningDate?.slice(0,10) ?? ""} required/>
       <input type="date" name="confirmationDate" defaultValue={employee.confirmationDate?.slice(0,10) ?? ""}/>
       <input name="biometricUserId" defaultValue={employee.biometricUserId ?? ""} placeholder="Biometric / device user ID"/>
@@ -221,8 +221,8 @@ function Dashboard({organizations,branches,departments,employees}:{organizations
 function Section({title,form,children}:{title:string;form:(e:FormEvent<HTMLFormElement>)=>void;children:ReactNode}) {
   return <div className="content"><div className="panel"><h2>Add {title.slice(0,-1)}</h2><form onSubmit={form}>{children}</form></div></div>;
 }
-function Select({name,placeholder,items,optional}:{name:string;placeholder:string;items:{id:string;label:string}[];optional?:boolean}) {
-  return <select name={name} required={!optional} defaultValue=""><option value="">{placeholder}</option>{items.map(x=><option value={x.id} key={x.id}>{x.label}</option>)}</select>;
+function Select({name,placeholder,items,optional,defaultValue}:{name:string;placeholder:string;items:{id:string;label:string}[];optional?:boolean;defaultValue?:string}) {
+  return <select name={name} required={!optional} defaultValue={defaultValue ?? ""}><option value="">{placeholder}</option>{items.map(x=><option value={x.id} key={x.id}>{x.label}</option>)}</select>;
 }
 function List({rows}:{rows:string[][]}) {
   return <div className="table-wrap"><table><tbody>{rows.length===0?<tr><td className="empty">No records yet.</td></tr>:rows.map((r,i)=><tr key={i}>{r.map((c,j)=><td key={j}>{c}</td>)}</tr>)}</tbody></table></div>;
