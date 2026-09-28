@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5048";
 
@@ -99,7 +99,7 @@ function App() {
 function Dashboard({organizations,branches,departments,employees}:{organizations:Organization[];branches:Branch[];departments:Department[];employees:Employee[]}) {
   return <><div className="welcome"><div><small>WELCOME</small><h2>HRMS foundation is ready.</h2><p>Set up your organization structure and employee master before connecting biometric attendance.</p></div></div><div className="cards">{[["Organizations",organizations.length],["Branches",branches.length],["Departments",departments.length],["Active Employees",employees.length]].map(([a,b])=><div className="card" key={String(a)}><span>{a}</span><strong>{b}</strong></div>)}</div><div className="panel"><h3>Implementation path</h3><div className="steps"><span>01 Master Data</span><span>02 Users & Roles</span><span>03 Devices & Punches</span><span>04 Attendance Engine</span><span>05 Leave Workflow</span></div></div></>;
 }
-function Section({title,form,children}:{title:string;form:(e:FormEvent<HTMLFormElement>)=>void;children:React.ReactNode}) {
+function Section({title,form,children}:{title:string;form:(e:FormEvent<HTMLFormElement>)=>void;children:ReactNode}) {
   return <div className="content"><div className="panel"><h2>Add {title.slice(0,-1)}</h2><form onSubmit={form}>{children}</form></div></div>;
 }
 function Select({name,placeholder,items,optional}:{name:string;placeholder:string;items:{id:string;label:string}[];optional?:boolean}) {
