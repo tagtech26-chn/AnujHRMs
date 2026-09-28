@@ -191,7 +191,7 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
             .ToArray();
 
         var managerMap = existingEmployees
-            .Where(x => managerCodes.Contains(x.EmployeeCode, StringComparer.OrdinalIgnoreCase))
+            .Where(x => x.IsActive && managerCodes.Contains(x.EmployeeCode, StringComparer.OrdinalIgnoreCase))
             .ToDictionary(x => x.EmployeeCode, x => x.Id, StringComparer.OrdinalIgnoreCase);
 
         foreach (var item in parsedRows)
