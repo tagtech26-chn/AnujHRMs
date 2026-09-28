@@ -10,7 +10,7 @@ type Employee = {
   dateOfBirth?: string; gender?: string; mobileNumber?: string; emailAddress?: string; address?: string;
   departmentId?: string; branchId?: string; reportingManagerId?: string;
   designation?: string; employmentType?: string; joiningDate: string; confirmationDate?: string;
-  biometricUserId?: string; isActive: boolean;
+  biometricUserId?: string; emergencyContactName?: string; emergencyContactNumber?: string; emergencyContactRelation?: string; isActive: boolean;
 };
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
@@ -149,6 +149,9 @@ function App() {
           mobileNumber: f.get("mobileNumber") || null,
           emailAddress: f.get("emailAddress") || null,
           address: f.get("address") || null,
+          emergencyContactName: f.get("emergencyContactName") || null,
+          emergencyContactNumber: f.get("emergencyContactNumber") || null,
+          emergencyContactRelation: f.get("emergencyContactRelation") || null,
           designation: f.get("designation") || null,
           employmentType: f.get("employmentType") || null,
           branchId: f.get("branchId") || null,
@@ -201,6 +204,10 @@ function EmployeeDetails({employee,branches,departments,employees,onClose,onSubm
       <input name="mobileNumber" defaultValue={employee.mobileNumber ?? ""} placeholder="Mobile number"/>
       <input type="email" name="emailAddress" defaultValue={employee.emailAddress ?? ""} placeholder="Email address"/>
       <textarea name="address" defaultValue={employee.address ?? ""} placeholder="Address"/>
+      <h3>Emergency Contact</h3>
+      <input name="emergencyContactName" defaultValue={employee.emergencyContactName ?? ""} placeholder="Contact name"/>
+      <input name="emergencyContactNumber" defaultValue={employee.emergencyContactNumber ?? ""} placeholder="Contact number"/>
+      <input name="emergencyContactRelation" defaultValue={employee.emergencyContactRelation ?? ""} placeholder="Relationship"/>
       <h3>Employment Details</h3>
       <input name="designation" defaultValue={employee.designation ?? ""} placeholder="Designation"/>
       <select name="employmentType" defaultValue={employee.employmentType ?? ""}><option value="">Employment type</option><option>Permanent</option><option>Probation</option><option>Contract</option><option>Temporary</option><option>Intern</option></select>
