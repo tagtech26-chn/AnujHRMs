@@ -28,8 +28,12 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
     public async Task<ActionResult<Employee>> Create(Employee input, CancellationToken ct)
     {
         if (input.Id == Guid.Empty) input.Id = Guid.NewGuid();
+        if (string.IsNullOrWhiteSpace(input.EmployeeCode) || string.IsNullOrWhiteSpace(input.FullName))
+            return BadRequest("EmployeeCode and FullName are required.");
         if (await db.Employees.AnyAsync(x => x.EmployeeCode == input.EmployeeCode, ct))
             return Conflict("EmployeeCode already exists.");
+        var validation = await ValidateReferences(input, ct);
+        if (validation is not null) return validation;
         db.Employees.Add(input);
         await db.SaveChangesAsync(ct);
         return CreatedAtAction(nameof(Get), new { id = input.Id }, input);
@@ -40,11 +44,42 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
     {
         var item = await db.Employees.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
-        item.EmployeeCode = input.EmployeeCode; item.FullName = input.FullName;
-        item.DepartmentId = input.DepartmentId; item.BranchId = input.BranchId;
-        item.ReportingManagerId = input.ReportingManagerId; item.JoiningDate = input.JoiningDate;
+        if (string.IsNullOrWhiteSpace(input.EmployeeCode) || string.IsNullOrWhiteSpace(input.FullName))
+            return BadRequest("EmployeeCode and FullName are required.");
+        if (await db.Employees.AnyAsync(x => x.Id != id && x.EmployeeCode == input.EmployeeCode, ct))
+            return Conflict("EmployeeCode already exists.");
+        var validation = await ValidateReferences(input, ct, id);
+        if (validation is not null) return validation;
+        item.EmployeeCode = input.EmployeeCode;
+        item.FullName = input.FullName;
+        item.DepartmentId = input.DepartmentId;
+        item.BranchId = input.BranchId;
+        item.ReportingManagerId = input.ReportingManagerId;
+        item.JoiningDate = input.JoiningDate;
         item.IsActive = input.IsActive;
         await db.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+    private async Task<BadRequestObjectResult?> ValidateReferences(Employee input, CancellationToken ct, Guid? currentEmployeeId = null)
+    {
+        if (input.DepartmentId.HasValue &&
+            !await db.Departments.AnyAsync(x => x.Id == input.DepartmentId.Value && x.IsActive, ct))
+            return BadRequest("DepartmentId does not reference an active department.");
+
+        if (input.BranchId.HasValue &&
+            !await db.Branches.AnyAsync(x => x.Id == input.BranchId.Value && x.IsActive, ct))
+            return BadRequest("BranchId does not reference an active branch.");
+
+        if (input.ReportingManagerId.HasValue)
+        {
+            if (currentEmployeeId.HasValue && input.ReportingManagerId.Value == currentEmployeeId.Value)
+                return BadRequest("An employee cannot report to themselves.");
+
+            if (!await db.Employees.AnyAsync(x => x.Id == input.ReportingManagerId.Value && x.IsActive, ct))
+                return BadRequest("ReportingManagerId does not reference an active employee.");
+        }
+
+        return null;
     }
 }
