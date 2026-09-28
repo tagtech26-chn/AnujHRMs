@@ -38,8 +38,18 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
             e.ToTable("Employees"); e.HasKey(x => x.Id);
             e.Property(x => x.EmployeeCode).HasMaxLength(30).IsRequired();
             e.Property(x => x.FullName).HasMaxLength(200).IsRequired();
+            e.Property(x => x.DateOfBirth).HasColumnType("date");
+            e.Property(x => x.Gender).HasMaxLength(30);
+            e.Property(x => x.MobileNumber).HasMaxLength(30);
+            e.Property(x => x.EmailAddress).HasMaxLength(200);
+            e.Property(x => x.Address).HasMaxLength(1000);
+            e.Property(x => x.Designation).HasMaxLength(150);
+            e.Property(x => x.EmploymentType).HasMaxLength(50);
+            e.Property(x => x.BiometricUserId).HasMaxLength(100);
             e.HasIndex(x => x.EmployeeCode).IsUnique();
+            e.HasIndex(x => x.BiometricUserId).IsUnique().HasFilter("[BiometricUserId] IS NOT NULL");
             e.Property(x => x.JoiningDate).HasColumnType("date");
+            e.Property(x => x.ConfirmationDate).HasColumnType("date");
         });
         modelBuilder.Entity<RawPunch>(e => {
             e.ToTable("RawPunches"); e.HasKey(x => x.Id);
