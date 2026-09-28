@@ -317,15 +317,24 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
             return Conflict("EmployeeCode already exists.");
         var validation = await ValidateReferences(input, ct, id);
         if (validation is not null) return validation;
-        item.EmployeeCode = input.EmployeeCode;
-        item.FullName = input.FullName;
+        item.EmployeeCode = input.EmployeeCode.Trim();
+        item.FullName = input.FullName.Trim();
+        item.DateOfBirth = input.DateOfBirth;
+        item.Gender = string.IsNullOrWhiteSpace(input.Gender) ? null : input.Gender.Trim();
+        item.MobileNumber = string.IsNullOrWhiteSpace(input.MobileNumber) ? null : input.MobileNumber.Trim();
+        item.EmailAddress = string.IsNullOrWhiteSpace(input.EmailAddress) ? null : input.EmailAddress.Trim();
+        item.Address = string.IsNullOrWhiteSpace(input.Address) ? null : input.Address.Trim();
         item.DepartmentId = input.DepartmentId;
         item.BranchId = input.BranchId;
         item.ReportingManagerId = input.ReportingManagerId;
+        item.Designation = string.IsNullOrWhiteSpace(input.Designation) ? null : input.Designation.Trim();
+        item.EmploymentType = string.IsNullOrWhiteSpace(input.EmploymentType) ? null : input.EmploymentType.Trim();
         item.JoiningDate = input.JoiningDate;
+        item.ConfirmationDate = input.ConfirmationDate;
+        item.BiometricUserId = string.IsNullOrWhiteSpace(input.BiometricUserId) ? null : input.BiometricUserId.Trim();
         item.IsActive = input.IsActive;
         await db.SaveChangesAsync(ct);
-        return NoContent();
+        return Ok(item);
     }
 
     private async Task<BadRequestObjectResult?> ValidateReferences(Employee input, CancellationToken ct, Guid? currentEmployeeId = null)
