@@ -324,6 +324,9 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
         item.MobileNumber = string.IsNullOrWhiteSpace(input.MobileNumber) ? null : input.MobileNumber.Trim();
         item.EmailAddress = string.IsNullOrWhiteSpace(input.EmailAddress) ? null : input.EmailAddress.Trim();
         item.Address = string.IsNullOrWhiteSpace(input.Address) ? null : input.Address.Trim();
+        item.EmergencyContactName = string.IsNullOrWhiteSpace(input.EmergencyContactName) ? null : input.EmergencyContactName.Trim();
+        item.EmergencyContactNumber = string.IsNullOrWhiteSpace(input.EmergencyContactNumber) ? null : input.EmergencyContactNumber.Trim();
+        item.EmergencyContactRelation = string.IsNullOrWhiteSpace(input.EmergencyContactRelation) ? null : input.EmergencyContactRelation.Trim();
         item.DepartmentId = input.DepartmentId;
         item.BranchId = input.BranchId;
         item.ReportingManagerId = input.ReportingManagerId;
