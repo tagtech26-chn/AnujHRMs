@@ -11,6 +11,7 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<RawPunch> RawPunches => Set<RawPunch>();
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
+    public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -53,6 +54,22 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
             e.HasIndex(x => x.BiometricUserId).IsUnique().HasFilter("[BiometricUserId] IS NOT NULL");
             e.Property(x => x.JoiningDate).HasColumnType("date");
             e.Property(x => x.ConfirmationDate).HasColumnType("date");
+        });
+        modelBuilder.Entity<EmployeeDocument>(e => {
+            e.ToTable("EmployeeDocuments"); e.HasKey(x => x.Id);
+            e.Property(x => x.DocumentType).HasMaxLength(100).IsRequired();
+            e.Property(x => x.DocumentNumber).HasMaxLength(100);
+            e.Property(x => x.OriginalFileName).HasMaxLength(260).IsRequired();
+            e.Property(x => x.StoredFileName).HasMaxLength(260).IsRequired();
+            e.Property(x => x.ContentType).HasMaxLength(150).IsRequired();
+            e.Property(x => x.FileSize).IsRequired();
+            e.Property(x => x.IssueDate).HasColumnType("date");
+            e.Property(x => x.ExpiryDate).HasColumnType("date");
+            e.Property(x => x.Remarks).HasMaxLength(1000);
+            e.Property(x => x.UploadedAtUtc).HasColumnType("datetime2");
+            e.HasIndex(x => x.EmployeeId);
+            e.HasIndex(x => new { x.EmployeeId, x.DocumentType });
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<RawPunch>(e => {
             e.ToTable("RawPunches"); e.HasKey(x => x.Id);
