@@ -43,6 +43,9 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
             e.Property(x => x.MobileNumber).HasMaxLength(30);
             e.Property(x => x.EmailAddress).HasMaxLength(200);
             e.Property(x => x.Address).HasMaxLength(1000);
+            e.Property(x => x.EmergencyContactName).HasMaxLength(200);
+            e.Property(x => x.EmergencyContactNumber).HasMaxLength(30);
+            e.Property(x => x.EmergencyContactRelation).HasMaxLength(50);
             e.Property(x => x.Designation).HasMaxLength(150);
             e.Property(x => x.EmploymentType).HasMaxLength(50);
             e.Property(x => x.BiometricUserId).HasMaxLength(100);
