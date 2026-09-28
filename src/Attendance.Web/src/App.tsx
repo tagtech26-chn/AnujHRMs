@@ -38,18 +38,19 @@ function App() {
 
   const createOrganization = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const f = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const f = new FormData(form);
     try {
       await api("/api/organizations", { method: "POST", body: JSON.stringify({
         organizationCode: f.get("code"), organizationName: f.get("name"), legalName: f.get("legalName") || null,
         timeZoneId: "Asia/Kolkata", isActive: true
       })});
-      event.currentTarget.reset(); await load();
+      form.reset(); await load();
     } catch(e) { setError(e instanceof Error ? e.message : "Could not create organization"); }
   };
 
   const createBranch = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); const f = new FormData(event.currentTarget);
+    event.preventDefault(); const form = event.currentTarget; const f = new FormData(form);
     try {
       await api("/api/branches", { method:"POST", body: JSON.stringify({
         organizationId:f.get("organizationId"), branchCode:f.get("code"), branchName:f.get("name"), address:f.get("address") || null, isActive:true
@@ -58,7 +59,7 @@ function App() {
   };
 
   const createDepartment = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); const f = new FormData(event.currentTarget);
+    event.preventDefault(); const form = event.currentTarget; const f = new FormData(form);
     try {
       await api("/api/departments", { method:"POST", body: JSON.stringify({
         organizationId:f.get("organizationId"), departmentCode:f.get("code"), departmentName:f.get("name"), isActive:true
@@ -67,7 +68,7 @@ function App() {
   };
 
   const createEmployee = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); const f = new FormData(event.currentTarget);
+    event.preventDefault(); const form = event.currentTarget; const f = new FormData(form);
     try {
       await api("/api/employees", { method:"POST", body: JSON.stringify({
         employeeCode:f.get("code"), fullName:f.get("name"), branchId:f.get("branchId") || null,
