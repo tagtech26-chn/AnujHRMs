@@ -20,6 +20,8 @@ function App() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [error, setError] = useState("");
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkMessage, setBulkMessage] = useState("");
 
   const load = async () => {
     try {
@@ -78,6 +80,50 @@ function App() {
     } catch(e) { setError(e instanceof Error ? e.message : "Could not create employee"); }
   };
 
+  const downloadEmployeeTemplate = () => {
+    const csv = "OrganizationCode,EmployeeCode,FullName,BranchCode,DepartmentCode,ReportingManagerCode,JoiningDate,IsActive\nACPL,00207,Ravi,PATTANUR,SS,00206,2026-09-01,true\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "AnujHRMS_Employee_Template.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const uploadEmployees = async () => {
+    if (!bulkFile) {
+      setError("Please select an employee CSV file.");
+      return;
+    }
+
+    try {
+      setError("");
+      setBulkMessage("");
+      const form = new FormData();
+      form.append("file", bulkFile);
+
+      const response = await fetch(API + "/api/employees/bulk-upload", {
+        method: "POST",
+        body: form
+      });
+
+      const body = await response.json();
+      if (!response.ok) {
+        const details = body.errors?.map((x: { row: number; employeeCode: string; errors: string[] }) =>
+          `Row ${x.row} (${x.employeeCode || "blank code"}): ${x.errors.join(" ")}`
+        ).join(" | ");
+        throw new Error(details ? `${body.message} ${details}` : (body.message ?? "Bulk upload failed."));
+      }
+
+      setBulkMessage(`${body.message} Imported: ${body.imported} / ${body.totalRows} rows.`);
+      setBulkFile(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Bulk upload failed.");
+    }
+  };
+
   const nav = ["Dashboard","Organizations","Branches","Departments","Employees"];
   return <div className="app">
     <aside className="sidebar">
@@ -92,7 +138,7 @@ function App() {
       {tab==="Organizations" && <Section title="Organizations" form={createOrganization}><input name="code" placeholder="Organization code" required/><input name="name" placeholder="Organization name" required/><input name="legalName" placeholder="Legal name"/><button type="submit">Add Organization</button><List rows={organizations.map(x=>[x.organizationCode,x.organizationName,x.isActive?"Active":"Inactive"])}/></Section>}
       {tab==="Branches" && <Section title="Branches" form={createBranch}><Select name="organizationId" placeholder="Organization" items={organizations.map(x=>({id:x.id,label:x.organizationName}))}/><input name="code" placeholder="Branch code" required/><input name="name" placeholder="Branch name" required/><input name="address" placeholder="Address"/><button type="submit">Add Branch</button><List rows={branches.map(x=>[x.branchCode,x.branchName,organizations.find(o=>o.id===x.organizationId)?.organizationName??"-"])}/></Section>}
       {tab==="Departments" && <Section title="Departments" form={createDepartment}><Select name="organizationId" placeholder="Organization" items={organizations.map(x=>({id:x.id,label:x.organizationName}))}/><input name="code" placeholder="Department code" required/><input name="name" placeholder="Department name" required/><button type="submit">Add Department</button><List rows={departments.map(x=>[x.departmentCode,x.departmentName,organizations.find(o=>o.id===x.organizationId)?.organizationName??"-"])}/></Section>}
-      {tab==="Employees" && <Section title="Employees" form={createEmployee}><input name="code" placeholder="Employee code" required/><input name="name" placeholder="Full name" required/><Select name="branchId" placeholder="Branch (optional)" optional items={branches.map(x=>({id:x.id,label:x.branchName}))}/><Select name="departmentId" placeholder="Department (optional)" optional items={departments.map(x=>({id:x.id,label:x.departmentName}))}/><Select name="managerId" placeholder="Reporting manager (optional)" optional items={employees.map(x=>({id:x.id,label:x.employeeCode+" · "+x.fullName}))}/><input type="date" name="joiningDate" required/><button type="submit">Add Employee</button><List rows={employees.map(x=>[x.employeeCode,x.fullName,branches.find(b=>b.id===x.branchId)?.branchName??"-",departments.find(d=>d.id===x.departmentId)?.departmentName??"-",x.isActive?"Active":"Inactive"])}/></Section>}
+      {tab==="Employees" && <Section title="Employees" form={createEmployee}><input name="code" placeholder="Employee code" required/><input name="name" placeholder="Full name" required/><Select name="branchId" placeholder="Branch (optional)" optional items={branches.map(x=>({id:x.id,label:x.branchName}))}/><Select name="departmentId" placeholder="Department (optional)" optional items={departments.map(x=>({id:x.id,label:x.departmentName}))}/><Select name="managerId" placeholder="Reporting manager (optional)" optional items={employees.map(x=>({id:x.id,label:x.employeeCode+" · "+x.fullName}))}/><input type="date" name="joiningDate" required/><button type="submit">Add Employee</button><div className="bulk-upload"><div><strong>Bulk Employee Upload</strong><span>CSV only · all rows are validated before import</span></div><input type="file" accept=".csv,text/csv" onChange={e=>setBulkFile(e.target.files?.[0] ?? null)}/><button type="button" onClick={downloadEmployeeTemplate}>Download Template</button><button type="button" onClick={()=>void uploadEmployees()}>Upload CSV</button>{bulkMessage && <div className="success">{bulkMessage}</div>}</div><List rows={employees.map(x=>[x.employeeCode,x.fullName,branches.find(b=>b.id===x.branchId)?.branchName??"-",departments.find(d=>d.id===x.departmentId)?.departmentName??"-",x.isActive?"Active":"Inactive"])}/></Section>}
     </main>
   </div>;
 }
