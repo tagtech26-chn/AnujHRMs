@@ -14,6 +14,9 @@ public sealed class Employee
     public string? MobileNumber { get; set; }
     public string? EmailAddress { get; set; }
     public string? Address { get; set; }
+    public string? EmergencyContactName { get; set; }
+    public string? EmergencyContactNumber { get; set; }
+    public string? EmergencyContactRelation { get; set; }
 
     // Employment details
     public Guid? DepartmentId { get; set; }
