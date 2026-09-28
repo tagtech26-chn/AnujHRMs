@@ -54,7 +54,7 @@ function App() {
     try {
       await api("/api/branches", { method:"POST", body: JSON.stringify({
         organizationId:f.get("organizationId"), branchCode:f.get("code"), branchName:f.get("name"), address:f.get("address") || null, isActive:true
-      })}); event.currentTarget.reset(); await load();
+      })}); form.reset(); await load();
     } catch(e) { setError(e instanceof Error ? e.message : "Could not create branch"); }
   };
 
