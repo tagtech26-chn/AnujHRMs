@@ -1,6 +1,6 @@
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 
-const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5048";
+const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
 
 type Organization = { id: string; organizationCode: string; organizationName: string; legalName?: string; timeZoneId?: string; isActive: boolean };
 type Branch = { id: string; organizationId: string; branchCode: string; branchName: string; address?: string; isActive: boolean };
