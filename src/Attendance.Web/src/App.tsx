@@ -63,7 +63,7 @@ function App() {
     try {
       await api("/api/departments", { method:"POST", body: JSON.stringify({
         organizationId:f.get("organizationId"), departmentCode:f.get("code"), departmentName:f.get("name"), isActive:true
-      })}); event.currentTarget.reset(); await load();
+      })}); form.reset(); await load();
     } catch(e) { setError(e instanceof Error ? e.message : "Could not create department"); }
   };
 
