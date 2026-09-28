@@ -185,25 +185,54 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
                 parsedRows.Add((row, joiningDate, isActive, branchId, departmentId));
         }
 
-        var managerCodes = parsedRows.Select(x => x.Row.ReportingManagerCode)
+        // Reporting managers may already exist in the database OR be another active employee
+        // in the same CSV upload. Normalize codes so spaces/casing do not cause false failures.
+        var managerCodes = parsedRows
+            .Select(x => x.Row.ReportingManagerCode.Trim())
             .Where(x => x.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         var managerMap = existingEmployees
-            .Where(x => x.IsActive && managerCodes.Contains(x.EmployeeCode, StringComparer.OrdinalIgnoreCase))
-            .ToDictionary(x => x.EmployeeCode, x => x.Id, StringComparer.OrdinalIgnoreCase);
+            .Where(x => x.IsActive)
+            .GroupBy(x => x.EmployeeCode.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First().Id, StringComparer.OrdinalIgnoreCase);
+
+        // Add employees from this upload as possible managers.
+        // Only active rows can be referenced as reporting managers.
+        foreach (var item in parsedRows.Where(x => x.IsActive))
+        {
+            var code = item.Row.EmployeeCode.Trim();
+            if (!managerMap.ContainsKey(code))
+                managerMap[code] = Guid.Empty; // resolved to the new entity Id after insert
+        }
 
         foreach (var item in parsedRows)
         {
-            if (!string.IsNullOrWhiteSpace(item.Row.ReportingManagerCode) &&
-                !managerMap.ContainsKey(item.Row.ReportingManagerCode))
+            var managerCode = item.Row.ReportingManagerCode.Trim();
+
+            if (managerCode.Length == 0)
+                continue;
+
+            if (!managerMap.ContainsKey(managerCode))
+            {
                 validationErrors.Add(new
                 {
                     row = item.Row.LineNumber,
                     employeeCode = item.Row.EmployeeCode,
-                    errors = new[] { "ReportingManagerCode must reference an existing active employee." }
+                    errors = new[] { "ReportingManagerCode must reference an existing active employee or an active employee in this upload." }
                 });
+            }
+
+            if (managerCode.Equals(item.Row.EmployeeCode.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                validationErrors.Add(new
+                {
+                    row = item.Row.LineNumber,
+                    employeeCode = item.Row.EmployeeCode,
+                    errors = new[] { "An employee cannot report to themselves." }
+                });
+            }
         }
 
         if (validationErrors.Count > 0)
@@ -232,11 +261,25 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
             db.Employees.AddRange(entities);
             await db.SaveChangesAsync(ct);
 
+            // Resolve manager codes to both existing employees and employees inserted by this upload.
             for (var i = 0; i < entities.Count; i++)
             {
-                var managerCode = parsedRows[i].Row.ReportingManagerCode;
-                if (!string.IsNullOrWhiteSpace(managerCode))
-                    entities[i].ReportingManagerId = managerMap[managerCode];
+                var managerCode = parsedRows[i].Row.ReportingManagerCode.Trim();
+
+                if (managerCode.Length == 0)
+                    continue;
+
+                var managerEntity = entities.FirstOrDefault(x =>
+                    x.EmployeeCode.Trim().Equals(managerCode, StringComparison.OrdinalIgnoreCase));
+
+                if (managerEntity is not null)
+                {
+                    entities[i].ReportingManagerId = managerEntity.Id;
+                }
+                else if (managerMap.TryGetValue(managerCode, out var existingManagerId))
+                {
+                    entities[i].ReportingManagerId = existingManagerId;
+                }
             }
 
             await db.SaveChangesAsync(ct);
