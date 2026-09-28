@@ -95,11 +95,11 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
             var row = new BulkEmployeeRow(
                 lineNumber,
                 Get("OrganizationCode"),
-                Get("EmployeeCode"),
+                NormalizeEmployeeCode(Get("EmployeeCode")),
                 Get("FullName"),
                 Get("BranchCode"),
                 Get("DepartmentCode"),
-                Get("ReportingManagerCode"),
+                NormalizeEmployeeCode(Get("ReportingManagerCode")),
                 Get("JoiningDate"),
                 Get("IsActive"));
 
@@ -195,7 +195,7 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
 
         var managerMap = existingEmployees
             .Where(x => x.IsActive)
-            .GroupBy(x => x.EmployeeCode.Trim(), StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => NormalizeEmployeeCode(x.EmployeeCode), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.First().Id, StringComparer.OrdinalIgnoreCase);
 
         // Add employees from this upload as possible managers.
@@ -345,6 +345,20 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
 
     private static string NormalizeHeader(string value) =>
         value.Trim().Trim('\uFEFF').Trim();
+
+    // Employee codes are identifiers, not numeric values. Excel may remove leading
+    // zeroes when saving CSV, so numeric codes are normalized to the HRMS five-digit
+    // format: 206 -> 00206, 116 -> 00116, 00206 -> 00206.
+    private static string NormalizeEmployeeCode(string value)
+    {
+        value = value.Trim();
+        if (value.Length == 0) return value;
+
+        if (value.All(char.IsDigit) && int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var number))
+            return number.ToString("D5", CultureInfo.InvariantCulture);
+
+        return value;
+    }
 
     private static bool TryParseBoolean(string value, out bool result)
     {
