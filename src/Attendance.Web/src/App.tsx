@@ -74,7 +74,7 @@ function App() {
         employeeCode:f.get("code"), fullName:f.get("name"), branchId:f.get("branchId") || null,
         departmentId:f.get("departmentId") || null, reportingManagerId:f.get("managerId") || null,
         joiningDate:f.get("joiningDate"), isActive:true
-      })}); event.currentTarget.reset(); await load();
+      })}); form.reset(); await load();
     } catch(e) { setError(e instanceof Error ? e.message : "Could not create employee"); }
   };
 
