@@ -244,59 +244,66 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
                 errors = validationErrors
             });
 
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        try
+        // SQL Server retry-on-failure is enabled in Infrastructure. User-initiated
+        // transactions must therefore run inside EF Core's execution strategy.
+        var executionStrategy = db.Database.CreateExecutionStrategy();
+
+        return await executionStrategy.ExecuteAsync(async () =>
         {
-            var entities = parsedRows.Select(x => new Employee
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            try
             {
-                Id = Guid.NewGuid(),
-                EmployeeCode = x.Row.EmployeeCode,
-                FullName = x.Row.FullName,
-                BranchId = x.BranchId,
-                DepartmentId = x.DepartmentId,
-                JoiningDate = x.JoiningDate,
-                IsActive = x.IsActive
-            }).ToList();
-
-            db.Employees.AddRange(entities);
-            await db.SaveChangesAsync(ct);
-
-            // Resolve manager codes to both existing employees and employees inserted by this upload.
-            for (var i = 0; i < entities.Count; i++)
-            {
-                var managerCode = parsedRows[i].Row.ReportingManagerCode.Trim();
-
-                if (managerCode.Length == 0)
-                    continue;
-
-                var managerEntity = entities.FirstOrDefault(x =>
-                    x.EmployeeCode.Trim().Equals(managerCode, StringComparison.OrdinalIgnoreCase));
-
-                if (managerEntity is not null)
+                var entities = parsedRows.Select(x => new Employee
                 {
-                    entities[i].ReportingManagerId = managerEntity.Id;
-                }
-                else if (managerMap.TryGetValue(managerCode, out var existingManagerId))
+                    Id = Guid.NewGuid(),
+                    EmployeeCode = x.Row.EmployeeCode,
+                    FullName = x.Row.FullName,
+                    BranchId = x.BranchId,
+                    DepartmentId = x.DepartmentId,
+                    JoiningDate = x.JoiningDate,
+                    IsActive = x.IsActive
+                }).ToList();
+
+                db.Employees.AddRange(entities);
+                await db.SaveChangesAsync(ct);
+
+                // Resolve manager codes to both existing employees and employees inserted by this upload.
+                for (var i = 0; i < entities.Count; i++)
                 {
-                    entities[i].ReportingManagerId = existingManagerId;
+                    var managerCode = parsedRows[i].Row.ReportingManagerCode.Trim();
+
+                    if (managerCode.Length == 0)
+                        continue;
+
+                    var managerEntity = entities.FirstOrDefault(x =>
+                        x.EmployeeCode.Trim().Equals(managerCode, StringComparison.OrdinalIgnoreCase));
+
+                    if (managerEntity is not null)
+                    {
+                        entities[i].ReportingManagerId = managerEntity.Id;
+                    }
+                    else if (managerMap.TryGetValue(managerCode, out var existingManagerId))
+                    {
+                        entities[i].ReportingManagerId = existingManagerId;
+                    }
                 }
+
+                await db.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
+
+                return Ok(new
+                {
+                    message = "Employee bulk upload completed.",
+                    imported = entities.Count,
+                    totalRows = lines.Count - 1
+                });
             }
-
-            await db.SaveChangesAsync(ct);
-            await transaction.CommitAsync(ct);
-
-            return Ok(new
+            catch
             {
-                message = "Employee bulk upload completed.",
-                imported = entities.Count,
-                totalRows = lines.Count - 1
-            });
-        }
-        catch
-        {
-            await transaction.RollbackAsync(ct);
-            throw;
-        }
+                await transaction.RollbackAsync(ct);
+                throw;
+            }
+        });
     }
 
     [HttpPut("{id:guid}")]
