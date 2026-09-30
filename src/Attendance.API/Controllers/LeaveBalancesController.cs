@@ -38,7 +38,7 @@ public sealed class LeaveBalancesController(AnujHrmsDbContext db) : ControllerBa
         var firstDay = new DateOnly(year, month, 1);
         var lastDay = firstDay.AddMonths(1).AddDays(-1);
         var employees = await db.Employees.Where(x => x.IsActive && x.JoiningDate <= lastDay).ToListAsync(ct);
-        var policies = await db.LeavePolicies.Include(x => db.LeaveTypes).Where(x => x.IsActive && x.EffectiveFrom <= lastDay && (!x.EffectiveTo.HasValue || x.EffectiveTo >= firstDay)).ToListAsync(ct);
+        var policies = await db.LeavePolicies.Where(x => x.IsActive && x.EffectiveFrom <= lastDay && (!x.EffectiveTo.HasValue || x.EffectiveTo >= firstDay)).ToListAsync(ct);
         var existing = await db.EmployeeLeaveBalances.Where(x => x.BalanceYear == year && x.BalanceMonth == month).ToListAsync(ct);
         var created = 0;
 
