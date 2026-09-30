@@ -41,6 +41,6 @@ JOIN dbo.EmployeeGrades g
 WHERE r.EmployeeGradeId IS NULL;
 
 IF NOT EXISTS (SELECT 1 FROM dbo.__AnujHRMSSchemaVersion WHERE VersionNumber=9)
-    INSERT dbo.__AnujHRMSSchemaVersion(VersionNumber,AppliedAtUtc) VALUES(9,SYSUTCDATETIME());
+    INSERT dbo.__AnujHRMSSchemaVersion(VersionNumber,AppliedAt) VALUES(9,SYSUTCDATETIME());
 
 COMMIT TRANSACTION;
