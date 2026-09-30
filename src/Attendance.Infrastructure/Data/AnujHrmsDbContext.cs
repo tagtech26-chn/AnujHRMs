@@ -12,6 +12,8 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
     public DbSet<RawPunch> RawPunches => Set<RawPunch>();
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
+    public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
+    public DbSet<LeavePolicy> LeavePolicies => Set<LeavePolicy>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,6 +77,27 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
             e.HasIndex(x => x.EmployeeId);
             e.HasIndex(x => new { x.EmployeeId, x.DocumentType });
             e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<LeaveType>(e => {
+            e.ToTable("LeaveTypes"); e.HasKey(x => x.Id);
+            e.Property(x => x.LeaveCode).HasMaxLength(30).IsRequired();
+            e.Property(x => x.LeaveName).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(500);
+            e.Property(x => x.CreatedAtUtc).HasColumnType("datetime2");
+            e.HasIndex(x => x.LeaveCode).IsUnique();
+        });
+        modelBuilder.Entity<LeavePolicy>(e => {
+            e.ToTable("LeavePolicies"); e.HasKey(x => x.Id);
+            e.Property(x => x.PolicyName).HasMaxLength(150).IsRequired();
+            e.Property(x => x.AccrualType).HasMaxLength(20).IsRequired();
+            e.Property(x => x.MonthlyEntitlement).HasPrecision(10,2);
+            e.Property(x => x.AnnualEntitlement).HasPrecision(10,2);
+            e.Property(x => x.MaximumCarryForward).HasPrecision(10,2);
+            e.Property(x => x.EffectiveFrom).HasColumnType("date");
+            e.Property(x => x.EffectiveTo).HasColumnType("date");
+            e.Property(x => x.CreatedAtUtc).HasColumnType("datetime2");
+            e.HasOne<LeaveType>().WithMany().HasForeignKey(x => x.LeaveTypeId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.LeaveTypeId, x.IsActive, x.EffectiveFrom });
         });
         modelBuilder.Entity<RawPunch>(e => {
             e.ToTable("RawPunches"); e.HasKey(x => x.Id);
