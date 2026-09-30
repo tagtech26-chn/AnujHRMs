@@ -10,7 +10,8 @@ type Employee = {
   dateOfBirth?: string; gender?: string; mobileNumber?: string; emailAddress?: string; address?: string;
   departmentId?: string; branchId?: string; reportingManagerId?: string;
   designation?: string; employmentType?: string; joiningDate: string; confirmationDate?: string;
-  biometricUserId?: string; emergencyContactName?: string; emergencyContactNumber?: string; emergencyContactRelation?: string; isActive: boolean;
+  biometricUserId?: string; emergencyContactName?: string; emergencyContactNumber?: string; emergencyContactRelation?: string;
+  profilePhotoFileName?: string; profilePhotoUpdatedAtUtc?: string; isActive: boolean;
 };
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
@@ -193,8 +194,52 @@ function App() {
 }
 
 function EmployeeDetails({employee,branches,departments,employees,onClose,onSubmit}:{employee:Employee;branches:Branch[];departments:Department[];employees:Employee[];onClose:()=>void;onSubmit:(e:FormEvent<HTMLFormElement>)=>void}) {
+  const [photoVersion,setPhotoVersion]=useState(Date.now());
+  const [photoFile,setPhotoFile]=useState<File | null>(null);
+  const [photoBusy,setPhotoBusy]=useState(false);
+  const [photoMessage,setPhotoMessage]=useState("");
+  const [photoError,setPhotoError]=useState("");
+  const photoUrl=employee.profilePhotoFileName ? API + "/api/employees/" + employee.id + "/photo?v=" + photoVersion : "";
+  const initials=employee.fullName.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase();
+
+  const uploadPhoto=async()=>{
+    if(!photoFile) return;
+    try{
+      setPhotoBusy(true); setPhotoError(""); setPhotoMessage("");
+      const form=new FormData(); form.append("file",photoFile);
+      const response=await fetch(API + "/api/employees/" + employee.id + "/photo",{method:"POST",body:form});
+      const body=await response.json().catch(()=>null);
+      if(!response.ok) throw new Error(body?.message ?? body ?? "Photo upload failed.");
+      setPhotoFile(null); setPhotoVersion(Date.now()); setPhotoMessage("Profile photo updated.");
+      const input=document.getElementById("employee-photo-input-" + employee.id) as HTMLInputElement | null;
+      if(input) input.value="";
+    }catch(e){setPhotoError(e instanceof Error ? e.message : "Photo upload failed.");}
+    finally{setPhotoBusy(false);}
+  };
+
+  const removePhoto=async()=>{
+    if(!employee.profilePhotoFileName) return;
+    if(!window.confirm("Remove this employee profile photo?")) return;
+    try{
+      setPhotoBusy(true); setPhotoError(""); setPhotoMessage("");
+      const response=await fetch(API + "/api/employees/" + employee.id + "/photo",{method:"DELETE"});
+      if(!response.ok) throw new Error((await response.text()) || "Could not remove photo.");
+      setPhotoVersion(Date.now()); setPhotoMessage("Profile photo removed.");
+    }catch(e){setPhotoError(e instanceof Error ? e.message : "Could not remove photo.");}
+    finally{setPhotoBusy(false);}
+  };
+
   return <div className="details-overlay"><div className="details-panel">
     <div className="details-head"><div><small>EMPLOYEE MASTER</small><h2>{employee.employeeCode} · {employee.fullName}</h2></div><button type="button" className="close-button" onClick={onClose}>Close</button></div>
+    <div className="employee-photo-card">
+      <div className="employee-photo-preview">{photoUrl ? <img src={photoUrl} alt={employee.fullName + " profile"} /> : <span>{initials || "E"}</span>}</div>
+      <div className="employee-photo-info"><strong>Profile Photo</strong><span>JPG, JPEG or PNG · maximum 5 MB</span>
+        <div className="employee-photo-actions"><label className="photo-select-button">{photoFile ? photoFile.name : "Choose Photo"}<input id={"employee-photo-input-" + employee.id} type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" onChange={e=>{setPhotoFile(e.target.files?.[0] ?? null);setPhotoMessage("");setPhotoError("");}} /></label>
+        <button type="button" onClick={()=>void uploadPhoto()} disabled={!photoFile || photoBusy}>{photoBusy ? "Uploading..." : "Upload Photo"}</button>
+        {employee.profilePhotoFileName && <button type="button" className="close-button" onClick={()=>void removePhoto()} disabled={photoBusy}>Remove</button>}</div>
+        {photoMessage && <div className="success photo-status">{photoMessage}</div>}{photoError && <div className="photo-error">{photoError}</div>}
+      </div>
+    </div>
     <form onSubmit={onSubmit} className="details-form">
       <h3>Personal Details</h3>
       <input name="employeeCode" defaultValue={employee.employeeCode} placeholder="Employee code" required/>
