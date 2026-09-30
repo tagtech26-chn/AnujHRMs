@@ -60,8 +60,8 @@ public sealed class TravelExpensePolicyValidator(AnujHrmsDbContext db) : ITravel
             .Select(g => g.OrderByDescending(x => Scope(exceptions.First(e => e.Id == x.TravelPolicyExceptionId), employee)).First())
             .ToList();
 
-        var chosen = chosenExceptions.Count > 0 ? null : matchingStandard.FirstOrDefault(x => SameType(x.RuleType, line.ExpenseType));
         var exception = chosenExceptions.FirstOrDefault(x => SameType(x.RuleType, line.ExpenseType));
+        var chosen = exception is null ? matchingStandard.FirstOrDefault(x => SameType(x.RuleType, line.ExpenseType)) : null;
 
         var ruleType = line.ExpenseType;
         var rate = exception?.RatePerKm ?? chosen?.RatePerKm;
@@ -88,9 +88,6 @@ public sealed class TravelExpensePolicyValidator(AnujHrmsDbContext db) : ITravel
         }
         else if (amount.HasValue && string.Equals(calculation, "PerDay", StringComparison.OrdinalIgnoreCase))
         {
-            var days = Math.Max(1, claim.TravelTo.DayNumber - claim.TravelFrom.DayNumber + 1);
-            if (line.ExpenseDate == claim.TravelFrom || line.ExpenseDate == claim.TravelTo || claim.TravelFrom == claim.TravelTo)
-                days = 1;
             eligible = Math.Min(line.ClaimedAmount, amount.Value);
             message = $"Eligible up to {amount.Value:0.##} per day.";
         }
