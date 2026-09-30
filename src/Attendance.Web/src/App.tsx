@@ -6,7 +6,8 @@ type Organization = { id: string; organizationCode: string; organizationName: st
 type Branch = { id: string; organizationId: string; branchCode: string; branchName: string; address?: string; isActive: boolean };
 type Department = { id: string; organizationId: string; departmentCode: string; departmentName: string; isActive: boolean };
 type LeaveType = { id:string; leaveCode:string; leaveName:string; description?:string; isPaid:boolean; isHalfDayAllowed:boolean; requiresAttachment:boolean; isActive:boolean };
-type LeavePolicy = { id:string; leaveTypeId:string; policyName:string; accrualType:string; monthlyEntitlement:number; annualEntitlement?:number; carryForwardAllowed:boolean; maximumCarryForward:number; allowNegativeBalance:boolean; isActive:boolean; effectiveFrom:string; effectiveTo?:string };\ntype LeaveBalance = { id:string; employeeId:string; leavePolicyId:string; leaveTypeId:string; leaveCode:string; leaveName:string; policyName:string; accrualType:string; monthlyEntitlement:number; annualEntitlement?:number; balanceYear:number; balanceMonth:number; entitledDays:number; adjustmentDays:number; usedDays:number; expiredDays:number; availableDays:number };
+type LeavePolicy = { id:string; leaveTypeId:string; policyName:string; accrualType:string; monthlyEntitlement:number; annualEntitlement?:number; carryForwardAllowed:boolean; maximumCarryForward:number; allowNegativeBalance:boolean; isActive:boolean; effectiveFrom:string; effectiveTo?:string };
+type LeaveBalance = { id:string; employeeId:string; leavePolicyId:string; leaveTypeId:string; leaveCode:string; leaveName:string; policyName:string; accrualType:string; monthlyEntitlement:number; annualEntitlement?:number; balanceYear:number; balanceMonth:number; entitledDays:number; adjustmentDays:number; usedDays:number; expiredDays:number; availableDays:number };
 type Employee = {
   id: string; employeeCode: string; fullName: string;
   dateOfBirth?: string; gender?: string; mobileNumber?: string; emailAddress?: string; address?: string;
@@ -32,7 +33,12 @@ function App() {
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [bulkMessage, setBulkMessage] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);\n  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);\n  const [balanceEmployeeId, setBalanceEmployeeId] = useState("");\n  const [balanceYear, setBalanceYear] = useState(String(new Date().getFullYear()));\n  const [balanceMessage, setBalanceMessage] = useState("");\n  const [balanceBusy, setBalanceBusy] = useState(false);
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
+  const [balanceEmployeeId, setBalanceEmployeeId] = useState("");
+  const [balanceYear, setBalanceYear] = useState(String(new Date().getFullYear()));
+  const [balanceMessage, setBalanceMessage] = useState("");
+  const [balanceBusy, setBalanceBusy] = useState(false);
   const [leavePolicies, setLeavePolicies] = useState<LeavePolicy[]>([]);
   const [leaveCode, setLeaveCode] = useState(""); const [leaveName, setLeaveName] = useState("");
   const [leavePaid, setLeavePaid] = useState(true); const [leaveHalfDay, setLeaveHalfDay] = useState(true); const [leaveAttachment, setLeaveAttachment] = useState(false);
@@ -54,12 +60,13 @@ function App() {
     } catch (e) { setError(e instanceof Error ? e.message : "API connection failed"); }
   };
 
-  useEffect(() => { void load(); }, []);\n
+  useEffect(() => { void load(); }, []);
+
   const loadLeaveBalances = async (employeeId = balanceEmployeeId) => {
     if (!employeeId) { setLeaveBalances([]); return; }
     try {
       setBalanceMessage("");
-      const rows = await api<LeaveBalance[]>(\`/api/leave-balances/employee/\${employeeId}?year=\${balanceYear}\`);
+      const rows = await api<LeaveBalance[]>(`/api/leave-balances/employee/${employeeId}?year=${balanceYear}`);
       setLeaveBalances(rows);
     } catch(e) { setError(e instanceof Error ? e.message : "Could not load leave balances"); }
   };
@@ -70,7 +77,7 @@ function App() {
       setBalanceBusy(true); setError(""); setBalanceMessage("");
       const month = new Date().getMonth() + 1;
       const year = new Date().getFullYear();
-      const result = await api<{message:string}>(\`/api/leave-balances/accrue?year=\${year}&month=\${month}\`, {method:"POST"});
+      const result = await api<{message:string}>(`/api/leave-balances/accrue?year=${year}&month=${month}`, {method:"POST"});
       setBalanceMessage(result.message);
       setBalanceYear(String(year));
       await loadLeaveBalances(balanceEmployeeId);
@@ -122,7 +129,9 @@ function App() {
   };
 
   const downloadEmployeeTemplate = () => {
-    const csv = "OrganizationCode,EmployeeCode,FullName,BranchCode,DepartmentCode,ReportingManagerCode,JoiningDate,IsActive\nACPL,00207,Ravi,PATTANUR,SS,00206,2026-09-01,true\n";
+    const csv = "OrganizationCode,EmployeeCode,FullName,BranchCode,DepartmentCode,ReportingManagerCode,JoiningDate,IsActive
+ACPL,00207,Ravi,PATTANUR,SS,00206,2026-09-01,true
+";
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -235,7 +244,8 @@ function App() {
       {tab==="Branches" && <Section title="Branches" form={createBranch}><Select name="organizationId" placeholder="Organization" items={organizations.map(x=>({id:x.id,label:x.organizationName}))}/><input name="code" placeholder="Branch code" required/><input name="name" placeholder="Branch name" required/><input name="address" placeholder="Address"/><button type="submit">Add Branch</button><List rows={branches.map(x=>[x.branchCode,x.branchName,organizations.find(o=>o.id===x.organizationId)?.organizationName??"-"])}/></Section>}
       {tab==="Departments" && <Section title="Departments" form={createDepartment}><Select name="organizationId" placeholder="Organization" items={organizations.map(x=>({id:x.id,label:x.organizationName}))}/><input name="code" placeholder="Department code" required/><input name="name" placeholder="Department name" required/><button type="submit">Add Department</button><List rows={departments.map(x=>[x.departmentCode,x.departmentName,organizations.find(o=>o.id===x.organizationId)?.organizationName??"-"])}/></Section>}
       {tab==="Employees" && <Section title="Employees" form={createEmployee}><input name="code" placeholder="Employee code" required/><input name="name" placeholder="Full name" required/><Select name="branchId" placeholder="Branch (optional)" optional items={branches.map(x=>({id:x.id,label:x.branchName}))}/><Select name="departmentId" placeholder="Department (optional)" optional items={departments.map(x=>({id:x.id,label:x.departmentName}))}/><Select name="managerId" placeholder="Reporting manager (optional)" optional items={employees.map(x=>({id:x.id,label:x.employeeCode+" · "+x.fullName}))}/><input type="date" name="joiningDate" required/><button type="submit">Add Employee</button><div className="bulk-upload"><div><strong>Bulk Employee Upload</strong><span>CSV only · all rows are validated before import</span></div><input type="file" accept=".csv,text/csv" onChange={e=>setBulkFile(e.target.files?.[0] ?? null)}/><button type="button" onClick={downloadEmployeeTemplate}>Download Template</button><button type="button" onClick={()=>void uploadEmployees()}>Upload CSV</button>{bulkMessage && <div className="success">{bulkMessage}</div>}</div><div className="employee-table table-wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Branch</th><th>Department</th><th>Status</th><th></th></tr></thead><tbody>{employees.length===0?<tr><td colSpan={6} className="empty">No records yet.</td></tr>:employees.map(x=><tr key={x.id}><td>{x.employeeCode}</td><td>{x.fullName}</td><td>{branches.find(b=>b.id===x.branchId)?.branchName??"-"}</td><td>{departments.find(d=>d.id===x.departmentId)?.departmentName??"-"}</td><td>{x.isActive?"Active":"Inactive"}</td><td><button type="button" className="link-button" onClick={()=>setSelectedEmployee(x)}>View / Edit</button></td></tr>)}</tbody></table></div></Section>}
-      {tab==="Leave" && <LeaveManagement leaveTypes={leaveTypes} leavePolicies={leavePolicies} leaveCode={leaveCode} setLeaveCode={setLeaveCode} leaveName={leaveName} setLeaveName={setLeaveName} leavePaid={leavePaid} setLeavePaid={setLeavePaid} leaveHalfDay={leaveHalfDay} setLeaveHalfDay={setLeaveHalfDay} leaveAttachment={leaveAttachment} setLeaveAttachment={setLeaveAttachment} policyLeaveTypeId={policyLeaveTypeId} setPolicyLeaveTypeId={setPolicyLeaveTypeId} policyName={policyName} setPolicyName={setPolicyName} policyAccrual={policyAccrual} setPolicyAccrual={setPolicyAccrual} policyMonthly={policyMonthly} setPolicyMonthly={setPolicyMonthly} policyAnnual={policyAnnual} setPolicyAnnual={setPolicyAnnual} policyEffectiveFrom={policyEffectiveFrom} setPolicyEffectiveFrom={setPolicyEffectiveFrom} onCreateType={createLeaveType} onCreatePolicy={createLeavePolicy}/>}\n      {tab==="Leave Balance" && <LeaveBalanceManagement employees={employees} balances={leaveBalances} employeeId={balanceEmployeeId} setEmployeeId={setBalanceEmployeeId} year={balanceYear} setYear={setBalanceYear} onLoad={()=>void loadLeaveBalances()} onAccrue={()=>void accrueLeaveBalances()} busy={balanceBusy} message={balanceMessage}/>}
+      {tab==="Leave" && <LeaveManagement leaveTypes={leaveTypes} leavePolicies={leavePolicies} leaveCode={leaveCode} setLeaveCode={setLeaveCode} leaveName={leaveName} setLeaveName={setLeaveName} leavePaid={leavePaid} setLeavePaid={setLeavePaid} leaveHalfDay={leaveHalfDay} setLeaveHalfDay={setLeaveHalfDay} leaveAttachment={leaveAttachment} setLeaveAttachment={setLeaveAttachment} policyLeaveTypeId={policyLeaveTypeId} setPolicyLeaveTypeId={setPolicyLeaveTypeId} policyName={policyName} setPolicyName={setPolicyName} policyAccrual={policyAccrual} setPolicyAccrual={setPolicyAccrual} policyMonthly={policyMonthly} setPolicyMonthly={setPolicyMonthly} policyAnnual={policyAnnual} setPolicyAnnual={setPolicyAnnual} policyEffectiveFrom={policyEffectiveFrom} setPolicyEffectiveFrom={setPolicyEffectiveFrom} onCreateType={createLeaveType} onCreatePolicy={createLeavePolicy}/>}
+      {tab==="Leave Balance" && <LeaveBalanceManagement employees={employees} balances={leaveBalances} employeeId={balanceEmployeeId} setEmployeeId={setBalanceEmployeeId} year={balanceYear} setYear={setBalanceYear} onLoad={()=>void loadLeaveBalances()} onAccrue={()=>void accrueLeaveBalances()} busy={balanceBusy} message={balanceMessage}/>}
       {selectedEmployee && <EmployeeDetails employee={selectedEmployee} branches={branches} departments={departments} employees={employees} onClose={()=>setSelectedEmployee(null)} onSubmit={updateEmployee}/>}
 
     </main>
@@ -338,7 +348,8 @@ function LeaveBalanceManagement(p:{employees:Employee[];balances:LeaveBalance[];
     </div>
   </div>;
 }
-\nfunction LeaveManagement(p:{
+
+function LeaveManagement(p:{
   leaveTypes:LeaveType[]; leavePolicies:LeavePolicy[];
   leaveCode:string;setLeaveCode:(v:string)=>void;leaveName:string;setLeaveName:(v:string)=>void;leavePaid:boolean;setLeavePaid:(v:boolean)=>void;leaveHalfDay:boolean;setLeaveHalfDay:(v:boolean)=>void;leaveAttachment:boolean;setLeaveAttachment:(v:boolean)=>void;
   policyLeaveTypeId:string;setPolicyLeaveTypeId:(v:string)=>void;policyName:string;setPolicyName:(v:string)=>void;policyAccrual:string;setPolicyAccrual:(v:string)=>void;policyMonthly:string;setPolicyMonthly:(v:string)=>void;policyAnnual:string;setPolicyAnnual:(v:string)=>void;policyEffectiveFrom:string;setPolicyEffectiveFrom:(v:string)=>void;
