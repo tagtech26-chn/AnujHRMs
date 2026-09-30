@@ -1,5 +1,6 @@
 using Attendance.Domain.Entities;
 using Attendance.Infrastructure.Data;
+using Attendance.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -162,13 +163,6 @@ public sealed class ExpenseController(AnujHrmsDbContext db, ITravelExpensePolicy
     private async Task Recalculate(ExpenseClaim claim,CancellationToken ct)
     {
         var lines=await db.ExpenseClaimLines.Where(x=>x.ExpenseClaimId==claim.Id).ToListAsync(ct);
-        foreach(var line in lines)
-        {
-            line.EligibleAmount=line.ClaimedAmount;
-            line.RejectedAmount=0;
-            line.ValidationStatus="Pending";
-            line.ValidationMessage=null;
-        }
         claim.TotalClaimedAmount=lines.Sum(x=>x.ClaimedAmount);
         claim.TotalEligibleAmount=lines.Sum(x=>x.EligibleAmount);
         claim.TotalRejectedAmount=lines.Sum(x=>x.RejectedAmount);
