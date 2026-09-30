@@ -50,6 +50,11 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
             e.Property(x => x.Designation).HasMaxLength(150);
             e.Property(x => x.EmploymentType).HasMaxLength(50);
             e.Property(x => x.BiometricUserId).HasMaxLength(100);
+            e.Property(x => x.ProfilePhotoFileName).HasMaxLength(260);
+            e.Property(x => x.ProfilePhotoStoredFileName).HasMaxLength(260);
+            e.Property(x => x.ProfilePhotoContentType).HasMaxLength(150);
+            e.Property(x => x.ProfilePhotoFileSize);
+            e.Property(x => x.ProfilePhotoUpdatedAtUtc).HasColumnType("datetime2");
             e.HasIndex(x => x.EmployeeCode).IsUnique();
             e.HasIndex(x => x.BiometricUserId).IsUnique().HasFilter("[BiometricUserId] IS NOT NULL");
             e.Property(x => x.JoiningDate).HasColumnType("date");
