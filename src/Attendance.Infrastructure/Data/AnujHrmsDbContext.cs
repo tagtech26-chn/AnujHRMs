@@ -14,6 +14,10 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
     public DbSet<TravelPolicyRule> TravelPolicyRules => Set<TravelPolicyRule>();
     public DbSet<TravelPolicyException> TravelPolicyExceptions => Set<TravelPolicyException>();
     public DbSet<TravelPolicyExceptionRule> TravelPolicyExceptionRules => Set<TravelPolicyExceptionRule>();
+    public DbSet<TravelRequest> TravelRequests => Set<TravelRequest>();
+    public DbSet<ExpenseClaim> ExpenseClaims => Set<ExpenseClaim>();
+    public DbSet<ExpenseClaimLine> ExpenseClaimLines => Set<ExpenseClaimLine>();
+    public DbSet<ExpenseClaimAttachment> ExpenseClaimAttachments => Set<ExpenseClaimAttachment>();
     public DbSet<RawPunch> RawPunches => Set<RawPunch>();
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
@@ -22,6 +26,7 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
     public DbSet<EmployeeLeaveBalance> EmployeeLeaveBalances => Set<EmployeeLeaveBalance>();
     public DbSet<LeaveBalanceTransaction> LeaveBalanceTransactions => Set<LeaveBalanceTransaction>();
 
+    // Expense / travel claim mappings are kept explicit so the workflow remains independent of UI values.
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Organization>(e => { e.ToTable("Organizations"); e.HasKey(x => x.Id); e.Property(x => x.OrganizationCode).HasMaxLength(30).IsRequired(); e.Property(x => x.OrganizationName).HasMaxLength(200).IsRequired(); e.Property(x => x.LegalName).HasMaxLength(250); e.Property(x => x.TimeZoneId).HasMaxLength(100); e.HasIndex(x => x.OrganizationCode).IsUnique(); });
@@ -41,4 +46,30 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
         modelBuilder.Entity<RawPunch>(e => { e.ToTable("RawPunches"); e.HasKey(x=>x.Id); e.Property(x=>x.DeviceUserId).HasMaxLength(100).IsRequired(); e.Property(x=>x.VerificationType).HasMaxLength(50); e.Property(x=>x.TransactionKey).HasMaxLength(200); e.HasIndex(x=>new{x.DeviceId,x.DeviceUserId,x.PunchTime}); e.HasIndex(x=>x.TransactionKey).IsUnique().HasFilter("[TransactionKey] IS NOT NULL"); });
         modelBuilder.Entity<AttendanceRecord>(e => { e.ToTable("AttendanceRecords"); e.HasKey(x=>x.Id); e.Property(x=>x.AttendanceDate).HasColumnType("date"); e.Property(x=>x.Status).HasMaxLength(30).IsRequired(); e.HasIndex(x=>new{x.EmployeeId,x.AttendanceDate}).IsUnique(); });
     }
-}
+}        modelBuilder.Entity<TravelRequest>(e =>
+        {
+            e.ToTable("TravelRequests"); e.HasKey(x => x.Id); e.HasIndex(x => x.RequestNumber).IsUnique();
+            e.Property(x => x.RequestNumber).HasMaxLength(40).IsRequired(); e.Property(x => x.TravelDuration).HasMaxLength(30).IsRequired();
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.ReportingManagerId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ExpenseClaim>(e =>
+        {
+            e.ToTable("ExpenseClaims"); e.HasKey(x => x.Id); e.HasIndex(x => x.ClaimNumber).IsUnique();
+            e.Property(x => x.ClaimNumber).HasMaxLength(40).IsRequired(); e.Property(x => x.Status).HasMaxLength(30).IsRequired();
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<TravelRequest>().WithMany().HasForeignKey(x => x.TravelRequestId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.ReportingManagerId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ExpenseClaimLine>(e =>
+        {
+            e.ToTable("ExpenseClaimLines"); e.HasKey(x => x.Id); e.Property(x => x.ExpenseType).HasMaxLength(50).IsRequired();
+            e.HasOne<ExpenseClaim>().WithMany().HasForeignKey(x => x.ExpenseClaimId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<ExpenseClaimAttachment>(e =>
+        {
+            e.ToTable("ExpenseClaimAttachments"); e.HasKey(x => x.Id);
+            e.HasOne<ExpenseClaim>().WithMany().HasForeignKey(x => x.ExpenseClaimId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<ExpenseClaimLine>().WithMany().HasForeignKey(x => x.ExpenseClaimLineId).OnDelete(DeleteBehavior.NoAction);
+        });
+
