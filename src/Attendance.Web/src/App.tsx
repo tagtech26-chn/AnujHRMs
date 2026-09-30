@@ -320,6 +320,7 @@ function EmployeeDetails({employee,branches,departments,employees,employeeGrades
       <Select name="branchId" placeholder="Branch" optional defaultValue={employee.branchId} items={branches.map(x=>({id:x.id,label:x.branchName}))}/>
       <Select name="departmentId" placeholder="Department" optional defaultValue={employee.departmentId} items={departments.map(x=>({id:x.id,label:x.departmentName}))}/>
       <Select name="reportingManagerId" placeholder="Reporting manager" optional defaultValue={employee.reportingManagerId} items={employees.filter(x=>x.id!==employee.id).map(x=>({id:x.id,label:x.employeeCode+" · "+x.fullName}))}/>
+      <Select name="gradeId" placeholder="Employee grade" optional defaultValue={employee.gradeId} items={employeeGrades.map(x=>({id:x.id,label:x.gradeCode+" · "+x.gradeName}))}/>
       <input type="date" name="joiningDate" defaultValue={employee.joiningDate?.slice(0,10) ?? ""} required/>
       <input type="date" name="confirmationDate" defaultValue={employee.confirmationDate?.slice(0,10) ?? ""}/>
       <input name="biometricUserId" defaultValue={employee.biometricUserId ?? ""} placeholder="Biometric / device user ID"/>
