@@ -129,9 +129,7 @@ function App() {
   };
 
   const downloadEmployeeTemplate = () => {
-    const csv = "OrganizationCode,EmployeeCode,FullName,BranchCode,DepartmentCode,ReportingManagerCode,JoiningDate,IsActive
-ACPL,00207,Ravi,PATTANUR,SS,00206,2026-09-01,true
-";
+    const csv = "OrganizationCode,EmployeeCode,FullName,BranchCode,DepartmentCode,ReportingManagerCode,JoiningDate,IsActive\nACPL,00207,Ravi,PATTANUR,SS,00206,2026-09-01,true\n";
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
