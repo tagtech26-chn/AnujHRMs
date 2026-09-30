@@ -83,5 +83,5 @@ BEGIN
         CONSTRAINT FK_ExpenseClaimAttachments_Claim FOREIGN KEY(ExpenseClaimId) REFERENCES dbo.ExpenseClaims(Id),
         CONSTRAINT FK_ExpenseClaimAttachments_Line FOREIGN KEY(ExpenseClaimLineId) REFERENCES dbo.ExpenseClaimLines(Id)
     );
-    INSERT INTO dbo.__AnujHRMSSchemaVersion(VersionNumber, AppliedAtUtc) VALUES (10, SYSUTCDATETIME());
+    INSERT INTO dbo.__AnujHRMSSchemaVersion(VersionNumber, AppliedAt) VALUES (10, SYSUTCDATETIME());
 END
