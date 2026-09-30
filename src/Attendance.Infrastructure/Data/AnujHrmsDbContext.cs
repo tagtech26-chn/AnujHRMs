@@ -14,6 +14,8 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
     public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
     public DbSet<LeavePolicy> LeavePolicies => Set<LeavePolicy>();
+    public DbSet<EmployeeLeaveBalance> EmployeeLeaveBalances => Set<EmployeeLeaveBalance>();
+    public DbSet<LeaveBalanceTransaction> LeaveBalanceTransactions => Set<LeaveBalanceTransaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -98,6 +100,29 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
             e.Property(x => x.CreatedAtUtc).HasColumnType("datetime2");
             e.HasOne<LeaveType>().WithMany().HasForeignKey(x => x.LeaveTypeId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.LeaveTypeId, x.IsActive, x.EffectiveFrom });
+        });
+        modelBuilder.Entity<EmployeeLeaveBalance>(e => {
+            e.ToTable("EmployeeLeaveBalances"); e.HasKey(x => x.Id);
+            e.Property(x => x.EntitledDays).HasPrecision(10,2);
+            e.Property(x => x.AdjustmentDays).HasPrecision(10,2);
+            e.Property(x => x.UsedDays).HasPrecision(10,2);
+            e.Property(x => x.ExpiredDays).HasPrecision(10,2);
+            e.Ignore(x => x.AvailableDays);
+            e.Property(x => x.CreatedAtUtc).HasColumnType("datetime2");
+            e.Property(x => x.UpdatedAtUtc).HasColumnType("datetime2");
+            e.HasIndex(x => new { x.EmployeeId, x.LeavePolicyId, x.BalanceYear, x.BalanceMonth }).IsUnique();
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<LeavePolicy>().WithMany().HasForeignKey(x => x.LeavePolicyId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<LeaveBalanceTransaction>(e => {
+            e.ToTable("LeaveBalanceTransactions"); e.HasKey(x => x.Id);
+            e.Property(x => x.TransactionType).HasMaxLength(30).IsRequired();
+            e.Property(x => x.TransactionDays).HasPrecision(10,2);
+            e.Property(x => x.TransactionDate).HasColumnType("date");
+            e.Property(x => x.Remarks).HasMaxLength(500);
+            e.Property(x => x.CreatedAtUtc).HasColumnType("datetime2");
+            e.HasIndex(x => new { x.EmployeeLeaveBalanceId, x.TransactionDate });
+            e.HasOne<EmployeeLeaveBalance>().WithMany().HasForeignKey(x => x.EmployeeLeaveBalanceId).OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<RawPunch>(e => {
             e.ToTable("RawPunches"); e.HasKey(x => x.Id);
