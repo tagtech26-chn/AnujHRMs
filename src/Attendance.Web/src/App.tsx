@@ -203,6 +203,7 @@ function App() {
           joiningDate: f.get("joiningDate"),
           confirmationDate: f.get("confirmationDate") || null,
           biometricUserId: f.get("biometricUserId") || null,
+          gradeId: f.get("gradeId") || null,
           isActive: f.get("isActive") === "true"
         })
       });
