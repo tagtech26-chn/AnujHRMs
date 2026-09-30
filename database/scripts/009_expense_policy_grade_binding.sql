@@ -30,13 +30,13 @@ UPDATE r
 SET r.EmployeeGradeId = g.Id
 FROM dbo.TravelPolicyRules r
 JOIN dbo.EmployeeGrades g
-  ON r.Notes = CASE g.GradeCode
-        WHEN N'P7' THEN N'P7 - Directors'
-        WHEN N'P6_PLUS' THEN N'P6 & Above - GM'
-        WHEN N'P5_P4' THEN N'P5 & P4 - AGM/DGM'
-        WHEN N'P3' THEN N'P3 - Branch Manager/Sr. Executives'
-        WHEN N'P1_P2' THEN N'P1 & P2 - Jr. Executives/Executives'
-        WHEN N'P0' THEN N'P0 - Trainee/Temporary'
+  ON r.Notes LIKE CASE g.GradeCode
+        WHEN N'P7' THEN N'P7 - Directors%'
+        WHEN N'P6_PLUS' THEN N'P6 & Above%'
+        WHEN N'P5_P4' THEN N'P5 & P4%'
+        WHEN N'P3' THEN N'P3%'
+        WHEN N'P1_P2' THEN N'P1 & P2%'
+        WHEN N'P0' THEN N'P0%'
      END
 WHERE r.EmployeeGradeId IS NULL;
 
