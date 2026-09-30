@@ -4,6 +4,7 @@ public sealed class TravelPolicyRule
 {
     public Guid Id { get; set; }
     public Guid TravelPolicyId { get; set; }
+    public Guid? EmployeeGradeId { get; set; }
     public string RuleType { get; set; } = string.Empty;
     public string TravelDuration { get; set; } = "All";
     public string? TravelMode { get; set; }
