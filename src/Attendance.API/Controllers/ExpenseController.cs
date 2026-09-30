@@ -7,7 +7,7 @@ namespace Attendance.API.Controllers;
 
 [ApiController]
 [Route("api/expense")]
-public sealed class ExpenseController(AnujHrmsDbContext db) : ControllerBase
+public sealed class ExpenseController(AnujHrmsDbContext db, ITravelExpensePolicyValidator validator) : ControllerBase
 {
     [HttpGet("travel-requests")]
     public async Task<IActionResult> GetTravelRequests([FromQuery] Guid? employeeId, CancellationToken ct)
@@ -90,11 +90,24 @@ public sealed class ExpenseController(AnujHrmsDbContext db) : ControllerBase
         if(claim.Status!="Draft")return BadRequest("Only draft claims can be edited.");
         if(input.ExpenseDate<claim.TravelFrom||input.ExpenseDate>claim.TravelTo)return BadRequest("Expense date is outside the travel period.");
         input.Id=Guid.NewGuid();input.ExpenseClaimId=claimId;
-        input.EligibleAmount=input.ClaimedAmount;input.RejectedAmount=0;input.ValidationStatus="Pending";
+        var validation = await validator.ValidateLineAsync(claim.EmployeeId, claim, input, ct);
+        input.EligibleAmount=validation.EligibleAmount; input.RejectedAmount=validation.RejectedAmount; input.ValidationStatus=validation.Status; input.ValidationMessage=validation.Message; input.RequiresAttachment=validation.RequiresAttachment;
         db.ExpenseClaimLines.Add(input);
         await Recalculate(claim,ct);
         await db.SaveChangesAsync(ct);
         return Ok(input);
+    }
+
+    [HttpPost("claims/{id:guid}/validate")]
+    public async Task<IActionResult> ValidateClaim(Guid id,CancellationToken ct)
+    {
+        var claim=await db.ExpenseClaims.FirstOrDefaultAsync(x=>x.Id==id,ct);
+        if(claim is null)return NotFound();
+        var lines=await db.ExpenseClaimLines.Where(x=>x.ExpenseClaimId==id).ToListAsync(ct);
+        if(lines.Count==0)return BadRequest("Add at least one expense line.");
+        foreach(var line in lines){var v=await validator.ValidateLineAsync(claim.EmployeeId,claim,line,ct);line.EligibleAmount=v.EligibleAmount;line.RejectedAmount=v.RejectedAmount;line.ValidationStatus=v.Status;line.ValidationMessage=v.Message;line.RequiresAttachment=v.RequiresAttachment;}
+        await Recalculate(claim,ct); await db.SaveChangesAsync(ct);
+        return Ok(new{claim,lines});
     }
 
     [HttpPost("claims/{id:guid}/submit")]
@@ -105,6 +118,11 @@ public sealed class ExpenseController(AnujHrmsDbContext db) : ControllerBase
         if(claim.Status!="Draft")return BadRequest("Only draft claims can be submitted.");
         var lines=await db.ExpenseClaimLines.Where(x=>x.ExpenseClaimId==id).ToListAsync(ct);
         if(lines.Count==0)return BadRequest("Add at least one expense line.");
+        foreach(var line in lines)
+        {
+            var validation=await validator.ValidateLineAsync(claim.EmployeeId,claim,line,ct);
+            line.EligibleAmount=validation.EligibleAmount; line.RejectedAmount=validation.RejectedAmount; line.ValidationStatus=validation.Status; line.ValidationMessage=validation.Message; line.RequiresAttachment=validation.RequiresAttachment;
+        }
         if(lines.Any(x=>x.RequiresAttachment&&!x.AttachmentProvided))return BadRequest("Required attachments are missing.");
         if(!claim.ReportingManagerId.HasValue)return BadRequest("Employee has no reporting manager configured.");
         await Recalculate(claim,ct);
@@ -129,7 +147,13 @@ public sealed class ExpenseController(AnujHrmsDbContext db) : ControllerBase
         if(input.Approve)
         {
             if(manager){claim.Status="PendingFinance";claim.ManagerRemarks=input.Remarks;}
-            else{claim.Status="Approved";claim.FinanceRemarks=input.Remarks;claim.FinanceApproverId=input.ApproverId;claim.ApprovedAtUtc=DateTime.UtcNow;}
+            else
+            {
+                var finance=await db.Employees.AsNoTracking().FirstOrDefaultAsync(x=>x.EmployeeCode=="00097"&&x.IsActive,ct);
+                if(finance is null)return BadRequest("Finance approver employee code 00097 is not configured.");
+                if(input.ApproverId.HasValue&&input.ApproverId.Value!=finance.Id)return BadRequest("Only finance employee 00097 can approve claims.");
+                claim.Status="Approved";claim.FinanceRemarks=input.Remarks;claim.FinanceApproverId=finance.Id;claim.ApprovedAtUtc=DateTime.UtcNow;
+            }
         }
         else {claim.Status="Rejected";if(manager)claim.ManagerRemarks=input.Remarks;else claim.FinanceRemarks=input.Remarks;}
         await db.SaveChangesAsync(ct);return Ok(claim);
