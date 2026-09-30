@@ -1,4 +1,5 @@
 import { FormEvent, ReactNode, useEffect, useState } from "react";
+import ExpensePolicy from "./ExpensePolicy";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
 
@@ -8,8 +9,9 @@ type Department = { id: string; organizationId: string; departmentCode: string; 
 type LeaveType = { id:string; leaveCode:string; leaveName:string; description?:string; isPaid:boolean; isHalfDayAllowed:boolean; requiresAttachment:boolean; isActive:boolean };
 type LeavePolicy = { id:string; leaveTypeId:string; policyName:string; accrualType:string; monthlyEntitlement:number; annualEntitlement?:number; carryForwardAllowed:boolean; maximumCarryForward:number; allowNegativeBalance:boolean; isActive:boolean; effectiveFrom:string; effectiveTo?:string };
 type LeaveBalance = { id:string; employeeId:string; leavePolicyId:string; leaveTypeId:string; leaveCode:string; leaveName:string; policyName:string; accrualType:string; monthlyEntitlement:number; annualEntitlement?:number; balanceYear:number; balanceMonth:number; entitledDays:number; adjustmentDays:number; usedDays:number; expiredDays:number; availableDays:number };
+type EmployeeGrade = { id:string; gradeCode:string; gradeName:string; description?:string; isActive:boolean };
 type Employee = {
-  id: string; employeeCode: string; fullName: string;
+  id: string; employeeCode: string; fullName: string;\n  gradeId?: string;
   dateOfBirth?: string; gender?: string; mobileNumber?: string; emailAddress?: string; address?: string;
   departmentId?: string; branchId?: string; reportingManagerId?: string;
   designation?: string; employmentType?: string; joiningDate: string; confirmationDate?: string;
@@ -28,7 +30,7 @@ function App() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);\n  const [employeeGrades, setEmployeeGrades] = useState<EmployeeGrade[]>([]);
   const [error, setError] = useState("");
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [bulkMessage, setBulkMessage] = useState("");
@@ -48,7 +50,7 @@ function App() {
   const load = async () => {
     try {
       setError("");
-      const [o,b,d,e,lt,lp] = await Promise.all([
+      const [o,b,d,e,g,lt,lp] = await Promise.all([
         api<Organization[]>("/api/organizations"),
         api<Branch[]>("/api/branches"),
         api<Department[]>("/api/departments"),
@@ -56,7 +58,7 @@ function App() {
         api<LeaveType[]>("/api/leave-types"),
         api<LeavePolicy[]>("/api/leave-policies")
       ]);
-      setOrganizations(o); setBranches(b); setDepartments(d); setEmployees(e); setLeaveTypes(lt); setLeavePolicies(lp);
+      setOrganizations(o); setBranches(b); setDepartments(d); setEmployees(e); setEmployeeGrades(g); setLeaveTypes(lt); setLeavePolicies(lp);
     } catch (e) { setError(e instanceof Error ? e.message : "API connection failed"); }
   };
 
@@ -123,7 +125,7 @@ function App() {
       await api("/api/employees", { method:"POST", body: JSON.stringify({
         employeeCode:f.get("code"), fullName:f.get("name"), branchId:f.get("branchId") || null,
         departmentId:f.get("departmentId") || null, reportingManagerId:f.get("managerId") || null,
-        joiningDate:f.get("joiningDate"), isActive:true
+        joiningDate:f.get("joiningDate"), gradeId:f.get("gradeId") || null, isActive:true
       })}); form.reset(); await load();
     } catch(e) { setError(e instanceof Error ? e.message : "Could not create employee"); }
   };
@@ -227,7 +229,7 @@ function App() {
     } catch(e){setError(e instanceof Error?e.message:"Could not create leave policy");}
   };
 
-  const nav = ["Dashboard","Organizations","Branches","Departments","Employees","Leave","Leave Balance"];
+  const nav = ["Dashboard","Organizations","Branches","Departments","Employees","Leave","Leave Balance","Expense Policy"];
   return <div className="app">
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark">A</div><div><strong>AnujHRMS</strong><span>Human Resource Management</span></div></div>
@@ -241,16 +243,16 @@ function App() {
       {tab==="Organizations" && <Section title="Organizations" form={createOrganization}><input name="code" placeholder="Organization code" required/><input name="name" placeholder="Organization name" required/><input name="legalName" placeholder="Legal name"/><button type="submit">Add Organization</button><List rows={organizations.map(x=>[x.organizationCode,x.organizationName,x.isActive?"Active":"Inactive"])}/></Section>}
       {tab==="Branches" && <Section title="Branches" form={createBranch}><Select name="organizationId" placeholder="Organization" items={organizations.map(x=>({id:x.id,label:x.organizationName}))}/><input name="code" placeholder="Branch code" required/><input name="name" placeholder="Branch name" required/><input name="address" placeholder="Address"/><button type="submit">Add Branch</button><List rows={branches.map(x=>[x.branchCode,x.branchName,organizations.find(o=>o.id===x.organizationId)?.organizationName??"-"])}/></Section>}
       {tab==="Departments" && <Section title="Departments" form={createDepartment}><Select name="organizationId" placeholder="Organization" items={organizations.map(x=>({id:x.id,label:x.organizationName}))}/><input name="code" placeholder="Department code" required/><input name="name" placeholder="Department name" required/><button type="submit">Add Department</button><List rows={departments.map(x=>[x.departmentCode,x.departmentName,organizations.find(o=>o.id===x.organizationId)?.organizationName??"-"])}/></Section>}
-      {tab==="Employees" && <Section title="Employees" form={createEmployee}><input name="code" placeholder="Employee code" required/><input name="name" placeholder="Full name" required/><Select name="branchId" placeholder="Branch (optional)" optional items={branches.map(x=>({id:x.id,label:x.branchName}))}/><Select name="departmentId" placeholder="Department (optional)" optional items={departments.map(x=>({id:x.id,label:x.departmentName}))}/><Select name="managerId" placeholder="Reporting manager (optional)" optional items={employees.map(x=>({id:x.id,label:x.employeeCode+" · "+x.fullName}))}/><input type="date" name="joiningDate" required/><button type="submit">Add Employee</button><div className="bulk-upload"><div><strong>Bulk Employee Upload</strong><span>CSV only · all rows are validated before import</span></div><input type="file" accept=".csv,text/csv" onChange={e=>setBulkFile(e.target.files?.[0] ?? null)}/><button type="button" onClick={downloadEmployeeTemplate}>Download Template</button><button type="button" onClick={()=>void uploadEmployees()}>Upload CSV</button>{bulkMessage && <div className="success">{bulkMessage}</div>}</div><div className="employee-table table-wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Branch</th><th>Department</th><th>Status</th><th></th></tr></thead><tbody>{employees.length===0?<tr><td colSpan={6} className="empty">No records yet.</td></tr>:employees.map(x=><tr key={x.id}><td>{x.employeeCode}</td><td>{x.fullName}</td><td>{branches.find(b=>b.id===x.branchId)?.branchName??"-"}</td><td>{departments.find(d=>d.id===x.departmentId)?.departmentName??"-"}</td><td>{x.isActive?"Active":"Inactive"}</td><td><button type="button" className="link-button" onClick={()=>setSelectedEmployee(x)}>View / Edit</button></td></tr>)}</tbody></table></div></Section>}
+      {tab==="Employees" && <Section title="Employees" form={createEmployee}><input name="code" placeholder="Employee code" required/><input name="name" placeholder="Full name" required/><Select name="branchId" placeholder="Branch (optional)" optional items={branches.map(x=>({id:x.id,label:x.branchName}))}/><Select name="departmentId" placeholder="Department (optional)" optional items={departments.map(x=>({id:x.id,label:x.departmentName}))}/><Select name="managerId" placeholder="Reporting manager (optional)" optional items={employees.map(x=>({id:x.id,label:x.employeeCode+" · "+x.fullName}))}/><Select name="gradeId" placeholder="Employee grade (optional)" optional items={employeeGrades.map(x=>({id:x.id,label:x.gradeCode+" · "+x.gradeName}))}/><input type="date" name="joiningDate" required/><button type="submit">Add Employee</button><div className="bulk-upload"><div><strong>Bulk Employee Upload</strong><span>CSV only · all rows are validated before import</span></div><input type="file" accept=".csv,text/csv" onChange={e=>setBulkFile(e.target.files?.[0] ?? null)}/><button type="button" onClick={downloadEmployeeTemplate}>Download Template</button><button type="button" onClick={()=>void uploadEmployees()}>Upload CSV</button>{bulkMessage && <div className="success">{bulkMessage}</div>}</div><div className="employee-table table-wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Branch</th><th>Department</th><th>Status</th><th></th></tr></thead><tbody>{employees.length===0?<tr><td colSpan={6} className="empty">No records yet.</td></tr>:employees.map(x=><tr key={x.id}><td>{x.employeeCode}</td><td>{x.fullName}</td><td>{branches.find(b=>b.id===x.branchId)?.branchName??"-"}</td><td>{departments.find(d=>d.id===x.departmentId)?.departmentName??"-"}</td><td>{x.isActive?"Active":"Inactive"}</td><td><button type="button" className="link-button" onClick={()=>setSelectedEmployee(x)}>View / Edit</button></td></tr>)}</tbody></table></div></Section>}
       {tab==="Leave" && <LeaveManagement leaveTypes={leaveTypes} leavePolicies={leavePolicies} leaveCode={leaveCode} setLeaveCode={setLeaveCode} leaveName={leaveName} setLeaveName={setLeaveName} leavePaid={leavePaid} setLeavePaid={setLeavePaid} leaveHalfDay={leaveHalfDay} setLeaveHalfDay={setLeaveHalfDay} leaveAttachment={leaveAttachment} setLeaveAttachment={setLeaveAttachment} policyLeaveTypeId={policyLeaveTypeId} setPolicyLeaveTypeId={setPolicyLeaveTypeId} policyName={policyName} setPolicyName={setPolicyName} policyAccrual={policyAccrual} setPolicyAccrual={setPolicyAccrual} policyMonthly={policyMonthly} setPolicyMonthly={setPolicyMonthly} policyAnnual={policyAnnual} setPolicyAnnual={setPolicyAnnual} policyEffectiveFrom={policyEffectiveFrom} setPolicyEffectiveFrom={setPolicyEffectiveFrom} onCreateType={createLeaveType} onCreatePolicy={createLeavePolicy}/>}
-      {tab==="Leave Balance" && <LeaveBalanceManagement employees={employees} balances={leaveBalances} employeeId={balanceEmployeeId} setEmployeeId={setBalanceEmployeeId} year={balanceYear} setYear={setBalanceYear} onLoad={()=>void loadLeaveBalances()} onAccrue={()=>void accrueLeaveBalances()} busy={balanceBusy} message={balanceMessage}/>}
-      {selectedEmployee && <EmployeeDetails employee={selectedEmployee} branches={branches} departments={departments} employees={employees} onClose={()=>setSelectedEmployee(null)} onSubmit={updateEmployee}/>}
+      {tab==="Expense Policy" && <ExpensePolicy/>}\n      {tab==="Leave Balance" && <LeaveBalanceManagement employees={employees} balances={leaveBalances} employeeId={balanceEmployeeId} setEmployeeId={setBalanceEmployeeId} year={balanceYear} setYear={setBalanceYear} onLoad={()=>void loadLeaveBalances()} onAccrue={()=>void accrueLeaveBalances()} busy={balanceBusy} message={balanceMessage}/>}
+      {selectedEmployee && <EmployeeDetails employee={selectedEmployee} branches={branches} departments={departments} employees={employees} employeeGrades={employeeGrades} onClose={()=>setSelectedEmployee(null)} onSubmit={updateEmployee}/>}
 
     </main>
   </div>;
 }
 
-function EmployeeDetails({employee,branches,departments,employees,onClose,onSubmit}:{employee:Employee;branches:Branch[];departments:Department[];employees:Employee[];onClose:()=>void;onSubmit:(e:FormEvent<HTMLFormElement>)=>void}) {
+function EmployeeDetails({employee,branches,departments,employees,employeeGrades,onClose,onSubmit}:{employee:Employee;branches:Branch[];departments:Department[];employees:Employee[];employeeGrades:EmployeeGrade[];onClose:()=>void;onSubmit:(e:FormEvent<HTMLFormElement>)=>void}) {
   const [photoVersion,setPhotoVersion]=useState(Date.now());
   const [photoFile,setPhotoFile]=useState<File | null>(null);
   const [photoBusy,setPhotoBusy]=useState(false);
