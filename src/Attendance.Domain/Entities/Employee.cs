@@ -30,5 +30,12 @@ public sealed class Employee
     // Biometric/device mapping
     public string? BiometricUserId { get; set; }
 
+    // Profile photo metadata. The image itself is stored on the server filesystem.
+    public string? ProfilePhotoFileName { get; set; }
+    public string? ProfilePhotoStoredFileName { get; set; }
+    public string? ProfilePhotoContentType { get; set; }
+    public long? ProfilePhotoFileSize { get; set; }
+    public DateTime? ProfilePhotoUpdatedAtUtc { get; set; }
+
     public bool IsActive { get; set; } = true;
 }
