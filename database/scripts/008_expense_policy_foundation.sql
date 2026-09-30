@@ -175,6 +175,6 @@ BEGIN
 END;
 
 IF NOT EXISTS (SELECT 1 FROM dbo.__AnujHRMSSchemaVersion WHERE VersionNumber = 8)
-    INSERT dbo.__AnujHRMSSchemaVersion(VersionNumber, AppliedAtUtc) VALUES (8, SYSUTCDATETIME());
+    INSERT dbo.__AnujHRMSSchemaVersion(VersionNumber, AppliedAt) VALUES (8, SYSUTCDATETIME());
 
 COMMIT TRANSACTION;
