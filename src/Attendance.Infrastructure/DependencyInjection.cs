@@ -13,6 +13,7 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException("Connection string 'AnujHRMS' is missing.");
         services.AddDbContext<AnujHrmsDbContext>(options =>
             options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
+        services.AddScoped<ITravelExpensePolicyValidator, TravelExpensePolicyValidator>();
         return services;
     }
 }
