@@ -327,6 +327,7 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
         item.EmergencyContactName = string.IsNullOrWhiteSpace(input.EmergencyContactName) ? null : input.EmergencyContactName.Trim();
         item.EmergencyContactNumber = string.IsNullOrWhiteSpace(input.EmergencyContactNumber) ? null : input.EmergencyContactNumber.Trim();
         item.EmergencyContactRelation = string.IsNullOrWhiteSpace(input.EmergencyContactRelation) ? null : input.EmergencyContactRelation.Trim();
+        item.GradeId = input.GradeId;
         item.DepartmentId = input.DepartmentId;
         item.BranchId = input.BranchId;
         item.ReportingManagerId = input.ReportingManagerId;
@@ -342,6 +343,8 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
 
     private async Task<BadRequestObjectResult?> ValidateReferences(Employee input, CancellationToken ct, Guid? currentEmployeeId = null)
     {
+        if (input.GradeId.HasValue && !await db.EmployeeGrades.AnyAsync(x => x.Id == input.GradeId.Value && x.IsActive, ct))
+            return BadRequest("GradeId does not reference an active employee grade.");
         if (input.DepartmentId.HasValue &&
             !await db.Departments.AnyAsync(x => x.Id == input.DepartmentId.Value && x.IsActive, ct))
             return BadRequest("DepartmentId does not reference an active department.");
