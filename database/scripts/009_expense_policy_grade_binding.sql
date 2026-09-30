@@ -13,6 +13,8 @@ IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.TravelP
 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.TravelPolicyExceptions') AND name=N'EmployeeGradeId')
     ALTER TABLE dbo.TravelPolicyExceptions ADD EmployeeGradeId UNIQUEIDENTIFIER NULL;
 
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_TravelPolicyRules_EmployeeGrades')
     ALTER TABLE dbo.TravelPolicyRules ADD CONSTRAINT FK_TravelPolicyRules_EmployeeGrades
         FOREIGN KEY(EmployeeGradeId) REFERENCES dbo.EmployeeGrades(Id);
