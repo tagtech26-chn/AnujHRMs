@@ -53,8 +53,6 @@ public sealed class TravelExpensePolicyValidator(AnujHrmsDbContext db) : ITravel
         var matchingStandard = standard.Where(x => Matches(x, claim, line)).ToList();
         var matchingException = exceptionRules.Where(x => MatchesException(x, claim, line)).ToList();
 
-        // Exception precedence is employee > department > grade. Only the highest matching
-        // scope is used for a given RuleType; unrelated exception rule types may still apply.
         var chosenExceptions = matchingException
             .GroupBy(x => x.RuleType, StringComparer.OrdinalIgnoreCase)
             .Select(g => g.OrderByDescending(x => Scope(exceptions.First(e => e.Id == x.TravelPolicyExceptionId), employee)).First())
@@ -63,12 +61,11 @@ public sealed class TravelExpensePolicyValidator(AnujHrmsDbContext db) : ITravel
         var exception = chosenExceptions.FirstOrDefault(x => SameType(x.RuleType, line.ExpenseType));
         var chosen = exception is null ? matchingStandard.FirstOrDefault(x => SameType(x.RuleType, line.ExpenseType)) : null;
 
-        var ruleType = line.ExpenseType;
         var rate = exception?.RatePerKm ?? chosen?.RatePerKm;
         var amount = exception?.Amount ?? chosen?.Amount;
         var maxKm = exception?.MaxKmPerDay ?? chosen?.MaxKmPerDay;
         var calculation = exception?.CalculationType ?? chosen?.CalculationType;
-        var requiresAttachment = (exception?.RequiresAttachment ?? chosen?.RequiresAttachment) ||
+        var requiresAttachment = (exception?.RequiresAttachment ?? chosen?.RequiresAttachment ?? false) ||
                                   matchingStandard.Any(x => x.RequiresAttachment);
 
         if (string.Equals(line.ExpenseType, "AttachmentRequired", StringComparison.OrdinalIgnoreCase))
@@ -106,8 +103,6 @@ public sealed class TravelExpensePolicyValidator(AnujHrmsDbContext db) : ITravel
         }
         else
         {
-            // Policy explicitly says actual for some grade/expense combinations. When no
-            // configured monetary cap exists, preserve the claim amount and retain audit data.
             eligible = line.ClaimedAmount;
             message = "No monetary cap is configured for this expense type in the effective policy; claimed amount retained for approval.";
         }
