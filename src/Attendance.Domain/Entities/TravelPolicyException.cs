@@ -3,7 +3,9 @@ namespace Attendance.Domain.Entities;
 public sealed class TravelPolicyException
 {
     public Guid Id { get; set; }
-    public Guid EmployeeId { get; set; }
+    public Guid? EmployeeId { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public Guid? EmployeeGradeId { get; set; }
     public string ExceptionName { get; set; } = string.Empty;
     public string? Reason { get; set; }
     public DateOnly EffectiveFrom { get; set; }
