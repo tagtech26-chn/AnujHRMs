@@ -5,6 +5,8 @@ const API = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
 type Organization = { id: string; organizationCode: string; organizationName: string; legalName?: string; timeZoneId?: string; isActive: boolean };
 type Branch = { id: string; organizationId: string; branchCode: string; branchName: string; address?: string; isActive: boolean };
 type Department = { id: string; organizationId: string; departmentCode: string; departmentName: string; isActive: boolean };
+type LeaveType = { id:string; leaveCode:string; leaveName:string; description?:string; isPaid:boolean; isHalfDayAllowed:boolean; requiresAttachment:boolean; isActive:boolean };
+type LeavePolicy = { id:string; leaveTypeId:string; policyName:string; accrualType:string; monthlyEntitlement:number; annualEntitlement?:number; carryForwardAllowed:boolean; maximumCarryForward:number; allowNegativeBalance:boolean; isActive:boolean; effectiveFrom:string; effectiveTo?:string };
 type Employee = {
   id: string; employeeCode: string; fullName: string;
   dateOfBirth?: string; gender?: string; mobileNumber?: string; emailAddress?: string; address?: string;
@@ -30,17 +32,25 @@ function App() {
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [bulkMessage, setBulkMessage] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  const [leavePolicies, setLeavePolicies] = useState<LeavePolicy[]>([]);
+  const [leaveCode, setLeaveCode] = useState(""); const [leaveName, setLeaveName] = useState("");
+  const [leavePaid, setLeavePaid] = useState(true); const [leaveHalfDay, setLeaveHalfDay] = useState(true); const [leaveAttachment, setLeaveAttachment] = useState(false);
+  const [policyLeaveTypeId, setPolicyLeaveTypeId] = useState(""); const [policyName, setPolicyName] = useState("");
+  const [policyAccrual, setPolicyAccrual] = useState("Monthly"); const [policyMonthly, setPolicyMonthly] = useState("1"); const [policyAnnual, setPolicyAnnual] = useState(""); const [policyEffectiveFrom, setPolicyEffectiveFrom] = useState(new Date().toISOString().slice(0,10));
 
   const load = async () => {
     try {
       setError("");
-      const [o,b,d,e] = await Promise.all([
+      const [o,b,d,e,lt,lp] = await Promise.all([
         api<Organization[]>("/api/organizations"),
         api<Branch[]>("/api/branches"),
         api<Department[]>("/api/departments"),
-        api<Employee[]>("/api/employees")
+        api<Employee[]>("/api/employees"),
+        api<LeaveType[]>("/api/leave-types"),
+        api<LeavePolicy[]>("/api/leave-policies")
       ]);
-      setOrganizations(o); setBranches(b); setDepartments(d); setEmployees(e);
+      setOrganizations(o); setBranches(b); setDepartments(d); setEmployees(e); setLeaveTypes(lt); setLeavePolicies(lp);
     } catch (e) { setError(e instanceof Error ? e.message : "API connection failed"); }
   };
 
@@ -172,7 +182,22 @@ function App() {
     }
   };
 
-  const nav = ["Dashboard","Organizations","Branches","Departments","Employees"];
+  const createLeaveType = async (event: FormEvent) => {
+    event.preventDefault();
+    try {
+      await api("/api/leave-types",{method:"POST",body:JSON.stringify({leaveCode:leaveCode.trim(),leaveName:leaveName.trim(),isPaid:leavePaid,isHalfDayAllowed:leaveHalfDay,requiresAttachment:leaveAttachment,isActive:true})});
+      setLeaveCode(""); setLeaveName(""); setLeavePaid(true); setLeaveHalfDay(true); setLeaveAttachment(false); await load();
+    } catch(e){setError(e instanceof Error?e.message:"Could not create leave type");}
+  };
+  const createLeavePolicy = async (event: FormEvent) => {
+    event.preventDefault();
+    try {
+      await api("/api/leave-policies",{method:"POST",body:JSON.stringify({leaveTypeId:policyLeaveTypeId,policyName:policyName.trim(),accrualType:policyAccrual,monthlyEntitlement:policyAccrual==="Monthly"?Number(policyMonthly):0,annualEntitlement:policyAccrual==="Annual"?Number(policyAnnual):null,carryForwardAllowed:false,maximumCarryForward:0,allowNegativeBalance:false,isActive:true,effectiveFrom:policyEffectiveFrom})});
+      setPolicyName(""); setPolicyMonthly("1"); setPolicyAnnual(""); await load();
+    } catch(e){setError(e instanceof Error?e.message:"Could not create leave policy");}
+  };
+
+  const nav = ["Dashboard","Organizations","Branches","Departments","Employees","Leave"];
   return <div className="app">
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark">A</div><div><strong>AnujHRMS</strong><span>Human Resource Management</span></div></div>
@@ -187,6 +212,7 @@ function App() {
       {tab==="Branches" && <Section title="Branches" form={createBranch}><Select name="organizationId" placeholder="Organization" items={organizations.map(x=>({id:x.id,label:x.organizationName}))}/><input name="code" placeholder="Branch code" required/><input name="name" placeholder="Branch name" required/><input name="address" placeholder="Address"/><button type="submit">Add Branch</button><List rows={branches.map(x=>[x.branchCode,x.branchName,organizations.find(o=>o.id===x.organizationId)?.organizationName??"-"])}/></Section>}
       {tab==="Departments" && <Section title="Departments" form={createDepartment}><Select name="organizationId" placeholder="Organization" items={organizations.map(x=>({id:x.id,label:x.organizationName}))}/><input name="code" placeholder="Department code" required/><input name="name" placeholder="Department name" required/><button type="submit">Add Department</button><List rows={departments.map(x=>[x.departmentCode,x.departmentName,organizations.find(o=>o.id===x.organizationId)?.organizationName??"-"])}/></Section>}
       {tab==="Employees" && <Section title="Employees" form={createEmployee}><input name="code" placeholder="Employee code" required/><input name="name" placeholder="Full name" required/><Select name="branchId" placeholder="Branch (optional)" optional items={branches.map(x=>({id:x.id,label:x.branchName}))}/><Select name="departmentId" placeholder="Department (optional)" optional items={departments.map(x=>({id:x.id,label:x.departmentName}))}/><Select name="managerId" placeholder="Reporting manager (optional)" optional items={employees.map(x=>({id:x.id,label:x.employeeCode+" · "+x.fullName}))}/><input type="date" name="joiningDate" required/><button type="submit">Add Employee</button><div className="bulk-upload"><div><strong>Bulk Employee Upload</strong><span>CSV only · all rows are validated before import</span></div><input type="file" accept=".csv,text/csv" onChange={e=>setBulkFile(e.target.files?.[0] ?? null)}/><button type="button" onClick={downloadEmployeeTemplate}>Download Template</button><button type="button" onClick={()=>void uploadEmployees()}>Upload CSV</button>{bulkMessage && <div className="success">{bulkMessage}</div>}</div><div className="employee-table table-wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Branch</th><th>Department</th><th>Status</th><th></th></tr></thead><tbody>{employees.length===0?<tr><td colSpan={6} className="empty">No records yet.</td></tr>:employees.map(x=><tr key={x.id}><td>{x.employeeCode}</td><td>{x.fullName}</td><td>{branches.find(b=>b.id===x.branchId)?.branchName??"-"}</td><td>{departments.find(d=>d.id===x.departmentId)?.departmentName??"-"}</td><td>{x.isActive?"Active":"Inactive"}</td><td><button type="button" className="link-button" onClick={()=>setSelectedEmployee(x)}>View / Edit</button></td></tr>)}</tbody></table></div></Section>}
+      {tab==="Leave" && <LeaveManagement leaveTypes={leaveTypes} leavePolicies={leavePolicies} leaveCode={leaveCode} setLeaveCode={setLeaveCode} leaveName={leaveName} setLeaveName={setLeaveName} leavePaid={leavePaid} setLeavePaid={setLeavePaid} leaveHalfDay={leaveHalfDay} setLeaveHalfDay={setLeaveHalfDay} leaveAttachment={leaveAttachment} setLeaveAttachment={setLeaveAttachment} policyLeaveTypeId={policyLeaveTypeId} setPolicyLeaveTypeId={setPolicyLeaveTypeId} policyName={policyName} setPolicyName={setPolicyName} policyAccrual={policyAccrual} setPolicyAccrual={setPolicyAccrual} policyMonthly={policyMonthly} setPolicyMonthly={setPolicyMonthly} policyAnnual={policyAnnual} setPolicyAnnual={setPolicyAnnual} policyEffectiveFrom={policyEffectiveFrom} setPolicyEffectiveFrom={setPolicyEffectiveFrom} onCreateType={createLeaveType} onCreatePolicy={createLeavePolicy}/>}
       {selectedEmployee && <EmployeeDetails employee={selectedEmployee} branches={branches} departments={departments} employees={employees} onClose={()=>setSelectedEmployee(null)} onSubmit={updateEmployee}/>}
 
     </main>
@@ -266,6 +292,33 @@ function EmployeeDetails({employee,branches,departments,employees,onClose,onSubm
       <div className="details-actions"><button type="button" className="close-button" onClick={onClose}>Cancel</button><button type="submit">Save Employee Details</button></div>
     </form>
   </div></div>;
+}
+function LeaveManagement(p:{
+  leaveTypes:LeaveType[]; leavePolicies:LeavePolicy[];
+  leaveCode:string;setLeaveCode:(v:string)=>void;leaveName:string;setLeaveName:(v:string)=>void;leavePaid:boolean;setLeavePaid:(v:boolean)=>void;leaveHalfDay:boolean;setLeaveHalfDay:(v:boolean)=>void;leaveAttachment:boolean;setLeaveAttachment:(v:boolean)=>void;
+  policyLeaveTypeId:string;setPolicyLeaveTypeId:(v:string)=>void;policyName:string;setPolicyName:(v:string)=>void;policyAccrual:string;setPolicyAccrual:(v:string)=>void;policyMonthly:string;setPolicyMonthly:(v:string)=>void;policyAnnual:string;setPolicyAnnual:(v:string)=>void;policyEffectiveFrom:string;setPolicyEffectiveFrom:(v:string)=>void;
+  onCreateType:(e:FormEvent)=>void;onCreatePolicy:(e:FormEvent)=>void;
+}) {
+  return <div className="content">
+    <div className="panel"><h2>Leave Types</h2><form onSubmit={p.onCreateType}>
+      <input value={p.leaveCode} onChange={e=>p.setLeaveCode(e.target.value)} placeholder="Leave code" required/>
+      <input value={p.leaveName} onChange={e=>p.setLeaveName(e.target.value)} placeholder="Leave name" required/>
+      <label className="check-field"><input type="checkbox" checked={p.leavePaid} onChange={e=>p.setLeavePaid(e.target.checked)}/> Paid leave</label>
+      <label className="check-field"><input type="checkbox" checked={p.leaveHalfDay} onChange={e=>p.setLeaveHalfDay(e.target.checked)}/> Half-day allowed</label>
+      <label className="check-field"><input type="checkbox" checked={p.leaveAttachment} onChange={e=>p.setLeaveAttachment(e.target.checked)}/> Attachment required</label>
+      <button type="submit">Add Leave Type</button>
+    </form><div className="table-wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Paid</th><th>Half Day</th><th>Attachment</th><th>Status</th></tr></thead><tbody>{p.leaveTypes.length===0?<tr><td colSpan={6} className="empty">No leave types configured.</td></tr>:p.leaveTypes.map(x=><tr key={x.id}><td>{x.leaveCode}</td><td>{x.leaveName}</td><td>{x.isPaid?"Yes":"No"}</td><td>{x.isHalfDayAllowed?"Yes":"No"}</td><td>{x.requiresAttachment?"Yes":"No"}</td><td>{x.isActive?"Active":"Inactive"}</td></tr>)}</tbody></table></div></div>
+    <div className="panel"><h2>Leave Policies</h2><form onSubmit={p.onCreatePolicy}>
+      <select value={p.policyLeaveTypeId} onChange={e=>p.setPolicyLeaveTypeId(e.target.value)} required><option value="">Leave type</option>{p.leaveTypes.map(x=><option value={x.id} key={x.id}>{x.leaveCode} · {x.leaveName}</option>)}</select>
+      <input value={p.policyName} onChange={e=>p.setPolicyName(e.target.value)} placeholder="Policy name" required/>
+      <select value={p.policyAccrual} onChange={e=>p.setPolicyAccrual(e.target.value)}><option value="Monthly">Monthly</option><option value="Annual">Annual</option><option value="None">None</option></select>
+      {p.policyAccrual==="Monthly" && <input type="number" min="0.01" step="0.01" value={p.policyMonthly} onChange={e=>p.setPolicyMonthly(e.target.value)} placeholder="Days per month" required/>}
+      {p.policyAccrual==="Annual" && <input type="number" min="0.01" step="0.01" value={p.policyAnnual} onChange={e=>p.setPolicyAnnual(e.target.value)} placeholder="Days per year" required/>}
+      <input type="date" value={p.policyEffectiveFrom} onChange={e=>p.setPolicyEffectiveFrom(e.target.value)} required/>
+      <div className="policy-rule"><strong>Carry Forward: No</strong><span>Unused monthly balance expires at month end.</span></div>
+      <button type="submit">Add Leave Policy</button>
+    </form><div className="table-wrap"><table><thead><tr><th>Policy</th><th>Leave Type</th><th>Accrual</th><th>Entitlement</th><th>Carry Forward</th><th>Effective</th></tr></thead><tbody>{p.leavePolicies.length===0?<tr><td colSpan={6} className="empty">No leave policies configured.</td></tr>:p.leavePolicies.map(x=><tr key={x.id}><td>{x.policyName}</td><td>{p.leaveTypes.find(t=>t.id===x.leaveTypeId)?.leaveName??"Unknown"}</td><td>{x.accrualType}</td><td>{x.accrualType==="Monthly"?x.monthlyEntitlement+" / month":x.accrualType==="Annual"?x.annualEntitlement+" / year":"None"}</td><td>{x.carryForwardAllowed?"Yes":"No"}</td><td>{x.effectiveFrom}</td></tr>)}</tbody></table></div></div>
+  </div>;
 }
 function Dashboard({organizations,branches,departments,employees}:{organizations:Organization[];branches:Branch[];departments:Department[];employees:Employee[]}) {
   return <><div className="welcome"><div><small>WELCOME</small><h2>HRMS foundation is ready.</h2><p>Set up your organization structure and employee master before connecting biometric attendance.</p></div></div><div className="cards">{[["Organizations",organizations.length],["Branches",branches.length],["Departments",departments.length],["Active Employees",employees.length]].map(([a,b])=><div className="card" key={String(a)}><span>{a}</span><strong>{b}</strong></div>)}</div><div className="panel"><h3>Implementation path</h3><div className="steps"><span>01 Master Data</span><span>02 Users & Roles</span><span>03 Devices & Punches</span><span>04 Attendance Engine</span><span>05 Leave Workflow</span></div></div></>;
