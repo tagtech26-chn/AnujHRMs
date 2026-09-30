@@ -109,10 +109,9 @@ public sealed class TravelPoliciesController(AnujHrmsDbContext db) : ControllerB
         if (policy is null) return NotFound("No active travel policy is effective for the requested date.");
 
         var standard = await db.TravelPolicyRules.AsNoTracking()
-            .Include(x => x.EmployeeGradeId)
-            .Where(x => x.TravelPolicyId == policy.Id && x.IsActive && x.EmployeeGradeId == employee.GradeId &&
-                        (x.TravelDuration == "All" || x.TravelDuration.Equals(travelDuration, StringComparison.OrdinalIgnoreCase)))
+            .Where(x => x.TravelPolicyId == policy.Id && x.IsActive && x.EmployeeGradeId == employee.GradeId)
             .ToListAsync(ct);
+        standard = standard.Where(x => x.TravelDuration.Equals("All", StringComparison.OrdinalIgnoreCase) || x.TravelDuration.Equals(travelDuration, StringComparison.OrdinalIgnoreCase)).ToList();
 
         var exceptions = await db.TravelPolicyExceptions.AsNoTracking()
             .Where(x => x.IsActive && x.EffectiveFrom <= effectiveDate && (x.EffectiveTo == null || x.EffectiveTo >= effectiveDate) &&
@@ -124,9 +123,9 @@ public sealed class TravelPoliciesController(AnujHrmsDbContext db) : ControllerB
 
         var exceptionIds = exceptions.Select(x => x.Id).ToArray();
         var exceptionRules = await db.TravelPolicyExceptionRules.AsNoTracking()
-            .Where(x => exceptionIds.Contains(x.TravelPolicyExceptionId) && x.IsActive &&
-                (x.TravelDuration == "All" || x.TravelDuration.Equals(travelDuration, StringComparison.OrdinalIgnoreCase)))
+            .Where(x => exceptionIds.Contains(x.TravelPolicyExceptionId) && x.IsActive)
             .ToListAsync(ct);
+        exceptionRules = exceptionRules.Where(x => x.TravelDuration.Equals("All", StringComparison.OrdinalIgnoreCase) || x.TravelDuration.Equals(travelDuration, StringComparison.OrdinalIgnoreCase)).ToList();
 
         IEnumerable<object> Filter(IEnumerable<TravelPolicyRule> rules) => rules.Where(x =>
             (string.IsNullOrWhiteSpace(travelMode) || string.IsNullOrWhiteSpace(x.TravelMode) || x.TravelMode.Equals(travelMode, StringComparison.OrdinalIgnoreCase)) &&
