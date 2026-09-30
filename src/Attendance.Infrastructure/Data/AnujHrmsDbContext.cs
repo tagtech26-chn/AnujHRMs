@@ -46,7 +46,7 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
         modelBuilder.Entity<RawPunch>(e => { e.ToTable("RawPunches"); e.HasKey(x=>x.Id); e.Property(x=>x.DeviceUserId).HasMaxLength(100).IsRequired(); e.Property(x=>x.VerificationType).HasMaxLength(50); e.Property(x=>x.TransactionKey).HasMaxLength(200); e.HasIndex(x=>new{x.DeviceId,x.DeviceUserId,x.PunchTime}); e.HasIndex(x=>x.TransactionKey).IsUnique().HasFilter("[TransactionKey] IS NOT NULL"); });
         modelBuilder.Entity<AttendanceRecord>(e => { e.ToTable("AttendanceRecords"); e.HasKey(x=>x.Id); e.Property(x=>x.AttendanceDate).HasColumnType("date"); e.Property(x=>x.Status).HasMaxLength(30).IsRequired(); e.HasIndex(x=>new{x.EmployeeId,x.AttendanceDate}).IsUnique(); });
     }
-}        modelBuilder.Entity<TravelRequest>(e =>
+        modelBuilder.Entity<TravelRequest>(e =>
         {
             e.ToTable("TravelRequests"); e.HasKey(x => x.Id); e.HasIndex(x => x.RequestNumber).IsUnique();
             e.Property(x => x.RequestNumber).HasMaxLength(40).IsRequired(); e.Property(x => x.TravelDuration).HasMaxLength(30).IsRequired();
