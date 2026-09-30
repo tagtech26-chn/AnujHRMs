@@ -17,3 +17,8 @@
 .photo-status{margin-top:2px}
 .photo-error{color:#be123c;background:#fff1f2;border:1px solid #fecdd3;padding:7px 9px;border-radius:6px;font-size:12px}
 @media(max-width:650px){.employee-photo-card{align-items:flex-start}.employee-photo-preview{width:88px;height:88px;flex-basis:88px;font-size:25px}}
+
+.check-field{display:flex;align-items:center;gap:7px;padding:9px 10px;border:1px solid #d7dee8;border-radius:7px;font-size:13px;color:#475569}
+.check-field input{width:auto!important}
+.policy-rule{display:grid;gap:2px;padding:9px 11px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12px;color:#334155}
+.policy-rule span{font-size:11px;color:#64748b}
