@@ -174,6 +174,38 @@ public sealed class ExpenseController(AnujHrmsDbContext db, ITravelExpensePolicy
     public async Task<IActionResult> FinanceDecision(Guid id,[FromBody] DecisionInput input,CancellationToken ct)
         => await Decision(id,input,false,ct);
 
+    [HttpPost("claims/{id:guid}/send-back")]
+    public async Task<IActionResult> SendBackClaim(Guid id, [FromBody] SendBackInput input, CancellationToken ct)
+    {
+        var claim = await db.ExpenseClaims.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (claim is null) return NotFound();
+        if (claim.Status != "PendingManager" && claim.Status != "PendingFinance")
+            return BadRequest("Only claims awaiting manager or finance review can be sent back.");
+        var from = claim.Status;
+        claim.Status = "Draft";
+        if (from == "PendingManager") claim.ManagerRemarks = input.Remarks;
+        else claim.FinanceRemarks = input.Remarks;
+        await db.SaveChangesAsync(ct);
+        await AddHistory("ExpenseClaim", claim.Id, "SendBack", from, claim.Status, input.ActorEmployeeId, input.Remarks, ct);
+        return Ok(claim);
+    }
+
+    [HttpPost("travel-requests/{id:guid}/send-back")]
+    public async Task<IActionResult> SendBackTravelRequest(Guid id, [FromBody] SendBackInput input, CancellationToken ct)
+    {
+        var request = await db.TravelRequests.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (request is null) return NotFound();
+        if (request.Status != "PendingManager" && request.Status != "PendingFinance")
+            return BadRequest("Only travel requests awaiting manager or finance review can be sent back.");
+        var from = request.Status;
+        request.Status = "Draft";
+        if (from == "PendingManager") request.ManagerRemarks = input.Remarks;
+        else request.FinanceRemarks = input.Remarks;
+        await db.SaveChangesAsync(ct);
+        await AddHistory("TravelRequest", request.Id, "SendBack", from, request.Status, input.ActorEmployeeId, input.Remarks, ct);
+        return Ok(request);
+    }
+
     [HttpPost("claims/{id:guid}/settle")]
     public async Task<IActionResult> SettleClaim(Guid id, [FromBody] SettlementInput input, CancellationToken ct)
     {
@@ -302,4 +334,5 @@ public sealed class ExpenseController(AnujHrmsDbContext db, ITravelExpensePolicy
 
     public sealed record DecisionInput(bool Approve,string? Remarks,Guid? ApproverId);
     public sealed record SettlementInput(Guid? ActorEmployeeId,string? Remarks);
+    public sealed record SendBackInput(Guid? ActorEmployeeId,string? Remarks);
 }
