@@ -99,6 +99,7 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
                 Get("FullName"),
                 Get("BranchCode"),
                 Get("DepartmentCode"),
+                Get("GradeCode"),
                 NormalizeEmployeeCode(Get("ReportingManagerCode")),
                 Get("JoiningDate"),
                 Get("IsActive"));
@@ -139,10 +140,11 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
 
         var branches = await db.Branches.AsNoTracking().ToListAsync(ct);
         var departments = await db.Departments.AsNoTracking().ToListAsync(ct);
+        var grades = await db.EmployeeGrades.AsNoTracking().Where(x => x.IsActive).ToListAsync(ct);
         var existingEmployees = await db.Employees.AsNoTracking().ToListAsync(ct);
 
         var validationErrors = new List<object>();
-        var parsedRows = new List<(BulkEmployeeRow Row, DateOnly JoiningDate, bool IsActive, Guid? BranchId, Guid? DepartmentId)>();
+        var parsedRows = new List<(BulkEmployeeRow Row, DateOnly JoiningDate, bool IsActive, Guid? BranchId, Guid? DepartmentId, Guid? GradeId)>();
 
         foreach (var row in rows)
         {
@@ -173,6 +175,14 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
                 else departmentId = department.Id;
             }
 
+            Guid? gradeId = null;
+            if (!string.IsNullOrWhiteSpace(row.GradeCode))
+            {
+                var grade = grades.FirstOrDefault(x => x.GradeCode.Equals(row.GradeCode, StringComparison.OrdinalIgnoreCase));
+                if (grade is null) rowErrors.Add("GradeCode does not reference an active employee grade.");
+                else gradeId = grade.Id;
+            }
+
             var joiningDate = DateOnly.TryParseExact(row.JoiningDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var isoDate)
                 ? isoDate
                 : DateOnly.Parse(row.JoiningDate, CultureInfo.GetCultureInfo("en-IN"));
@@ -182,7 +192,7 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
             if (rowErrors.Count > 0)
                 validationErrors.Add(new { row = row.LineNumber, employeeCode = row.EmployeeCode, errors = rowErrors });
             else
-                parsedRows.Add((row, joiningDate, isActive, branchId, departmentId));
+                parsedRows.Add((row, joiningDate, isActive, branchId, departmentId, gradeId));
         }
 
         // Reporting managers may already exist in the database OR be another active employee
@@ -260,6 +270,7 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
                     FullName = x.Row.FullName,
                     BranchId = x.BranchId,
                     DepartmentId = x.DepartmentId,
+                    GradeId = x.GradeId,
                     JoiningDate = x.JoiningDate,
                     IsActive = x.IsActive
                 }).ToList();
@@ -428,6 +439,7 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
         string FullName,
         string BranchCode,
         string DepartmentCode,
+        string GradeCode,
         string ReportingManagerCode,
         string JoiningDate,
         string IsActive);
