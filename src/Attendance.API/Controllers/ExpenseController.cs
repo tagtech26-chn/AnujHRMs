@@ -238,7 +238,8 @@ public sealed class ExpenseController(AnujHrmsDbContext db, ITravelExpensePolicy
             }
             else
             {
-                var finance=await db.Employees.AsNoTracking().FirstOrDefaultAsync(x=>x.EmployeeCode=="00097"&&x.IsActive,ct);
+                var financeCode = await GetFinanceApproverCode(ct);
+                var finance=string.IsNullOrWhiteSpace(financeCode) ? null : await db.Employees.AsNoTracking().FirstOrDefaultAsync(x=>x.EmployeeCode==financeCode&&x.IsActive,ct);
                 if(finance is null)return BadRequest("Finance approver employee code 00097 is not configured.");
                 if(input.ApproverId.HasValue&&input.ApproverId.Value!=finance.Id)return BadRequest("Only finance employee 00097 can approve claims.");
                 claim.Status="Approved";claim.FinanceRemarks=input.Remarks;claim.FinanceApproverId=finance.Id;claim.ApprovedAtUtc=DateTime.UtcNow;actorId=finance.Id;
@@ -275,7 +276,8 @@ public sealed class ExpenseController(AnujHrmsDbContext db, ITravelExpensePolicy
             }
             else
             {
-                var finance = await db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeCode == "00097" && x.IsActive, ct);
+                var financeCode = await GetFinanceApproverCode(ct);
+                var finance = string.IsNullOrWhiteSpace(financeCode) ? null : await db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeCode == financeCode && x.IsActive, ct);
                 if (finance is null) return BadRequest("Finance approver employee code 00097 is not configured.");
                 if (input.ApproverId.HasValue && input.ApproverId.Value != finance.Id)
                     return BadRequest("Only finance employee 00097 can approve travel requests.");
@@ -296,6 +298,14 @@ public sealed class ExpenseController(AnujHrmsDbContext db, ITravelExpensePolicy
         await AddHistory("TravelRequest", request.Id, input.Approve ? (manager ? "ManagerApprove" : "FinanceApprove") : "Reject",
             fromStatus, request.Status, actorId, input.Remarks, ct);
         return Ok(request);
+    }
+
+    private async Task<string?> GetFinanceApproverCode(CancellationToken ct)
+    {
+        return await db.SystemSettings.AsNoTracking()
+            .Where(x => x.SettingKey == "Expense.FinanceApproverEmployeeCode" && x.IsActive)
+            .Select(x => x.SettingValue)
+            .FirstOrDefaultAsync(ct);
     }
 
     private async Task Recalculate(ExpenseClaim claim,CancellationToken ct)
