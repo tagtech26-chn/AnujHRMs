@@ -18,6 +18,7 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
     public DbSet<ExpenseClaim> ExpenseClaims => Set<ExpenseClaim>();
     public DbSet<ExpenseClaimLine> ExpenseClaimLines => Set<ExpenseClaimLine>();
     public DbSet<ExpenseClaimAttachment> ExpenseClaimAttachments => Set<ExpenseClaimAttachment>();
+    public DbSet<ExpenseWorkflowHistory> ExpenseWorkflowHistories => Set<ExpenseWorkflowHistory>();
     public DbSet<RawPunch> RawPunches => Set<RawPunch>();
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
@@ -70,6 +71,18 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
             e.ToTable("ExpenseClaimAttachments"); e.HasKey(x => x.Id);
             e.HasOne<ExpenseClaim>().WithMany().HasForeignKey(x => x.ExpenseClaimId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<ExpenseClaimLine>().WithMany().HasForeignKey(x => x.ExpenseClaimLineId).OnDelete(DeleteBehavior.NoAction);
+        });
+        modelBuilder.Entity<ExpenseWorkflowHistory>(e =>
+        {
+            e.ToTable("ExpenseWorkflowHistories"); e.HasKey(x => x.Id);
+            e.Property(x => x.EntityType).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Action).HasMaxLength(40).IsRequired();
+            e.Property(x => x.FromStatus).HasMaxLength(30).IsRequired();
+            e.Property(x => x.ToStatus).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Remarks).HasMaxLength(2000);
+            e.Property(x => x.ActionedAtUtc).HasColumnType("datetime2");
+            e.HasIndex(x => new { x.EntityType, x.EntityId, x.ActionedAtUtc });
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.ActorEmployeeId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
