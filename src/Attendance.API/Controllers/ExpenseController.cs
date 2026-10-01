@@ -240,8 +240,8 @@ public sealed class ExpenseController(AnujHrmsDbContext db, ITravelExpensePolicy
             {
                 var financeCode = await GetFinanceApproverCode(ct);
                 var finance=string.IsNullOrWhiteSpace(financeCode) ? null : await db.Employees.AsNoTracking().FirstOrDefaultAsync(x=>x.EmployeeCode==financeCode&&x.IsActive,ct);
-                if(finance is null)return BadRequest("Finance approver employee code 00097 is not configured.");
-                if(input.ApproverId.HasValue&&input.ApproverId.Value!=finance.Id)return BadRequest("Only finance employee 00097 can approve claims.");
+                if(finance is null)return BadRequest($"Configured Finance approver employee code '{financeCode}' is not configured as an active employee.");
+                if(input.ApproverId.HasValue&&input.ApproverId.Value!=finance.Id)return BadRequest($"Only configured Finance employee {finance.EmployeeCode} can approve claims.");
                 claim.Status="Approved";claim.FinanceRemarks=input.Remarks;claim.FinanceApproverId=finance.Id;claim.ApprovedAtUtc=DateTime.UtcNow;actorId=finance.Id;
             }
         }
@@ -278,9 +278,9 @@ public sealed class ExpenseController(AnujHrmsDbContext db, ITravelExpensePolicy
             {
                 var financeCode = await GetFinanceApproverCode(ct);
                 var finance = string.IsNullOrWhiteSpace(financeCode) ? null : await db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeCode == financeCode && x.IsActive, ct);
-                if (finance is null) return BadRequest("Finance approver employee code 00097 is not configured.");
+                if (finance is null) return BadRequest($"Configured Finance approver employee code '{financeCode}' is not configured as an active employee.");
                 if (input.ApproverId.HasValue && input.ApproverId.Value != finance.Id)
-                    return BadRequest("Only finance employee 00097 can approve travel requests.");
+                    return BadRequest($"Only configured Finance employee {finance.EmployeeCode} can approve travel requests.");
                 request.Status = "Approved";
                 request.FinanceRemarks = input.Remarks;
                 request.FinanceApproverId = finance.Id;
