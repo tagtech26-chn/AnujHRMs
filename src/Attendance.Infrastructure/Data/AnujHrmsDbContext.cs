@@ -19,6 +19,7 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
     public DbSet<ExpenseClaimLine> ExpenseClaimLines => Set<ExpenseClaimLine>();
     public DbSet<ExpenseClaimAttachment> ExpenseClaimAttachments => Set<ExpenseClaimAttachment>();
     public DbSet<ExpenseWorkflowHistory> ExpenseWorkflowHistories => Set<ExpenseWorkflowHistory>();
+    public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
     public DbSet<RawPunch> RawPunches => Set<RawPunch>();
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
@@ -71,6 +72,15 @@ public sealed class AnujHrmsDbContext(DbContextOptions<AnujHrmsDbContext> option
             e.ToTable("ExpenseClaimAttachments"); e.HasKey(x => x.Id);
             e.HasOne<ExpenseClaim>().WithMany().HasForeignKey(x => x.ExpenseClaimId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<ExpenseClaimLine>().WithMany().HasForeignKey(x => x.ExpenseClaimLineId).OnDelete(DeleteBehavior.NoAction);
+        });
+        modelBuilder.Entity<SystemSetting>(e =>
+        {
+            e.ToTable("SystemSettings"); e.HasKey(x => x.Id);
+            e.Property(x => x.SettingKey).HasMaxLength(150).IsRequired();
+            e.Property(x => x.SettingValue).HasMaxLength(500).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.UpdatedAtUtc).HasColumnType("datetime2");
+            e.HasIndex(x => x.SettingKey).IsUnique();
         });
         modelBuilder.Entity<ExpenseWorkflowHistory>(e =>
         {
