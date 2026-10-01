@@ -90,7 +90,7 @@ public sealed class EmployeesController(AnujHrmsDbContext db) : ControllerBase
             if (string.IsNullOrWhiteSpace(lines[lineNumber - 1])) continue;
 
             var values = ParseCsvLine(lines[lineNumber - 1]);
-            string Get(string header) => index[header] < values.Count ? values[index[header]].Trim() : string.Empty;
+            string Get(string header) => index.TryGetValue(header, out var headerIndex) && headerIndex < values.Count ? values[headerIndex].Trim() : string.Empty;
 
             var row = new BulkEmployeeRow(
                 lineNumber,
