@@ -8,7 +8,7 @@ type Claim={id:string;claimNumber:string;employeeId:string;travelRequestId?:stri
 type Line={id:string;expenseClaimId:string;expenseDate:string;expenseType:string;description?:string|null;travelMode?:string|null;vehicleType?:string|null;distanceKm?:number|null;claimedAmount:number;eligibleAmount:number;rejectedAmount:number;validationStatus?:string|null;validationMessage?:string|null;requiresAttachment:boolean;attachmentProvided:boolean};
 type Queue={travelRequests:TravelRequest[];claims:Claim[]};
 
-async function api(path:string,init?:RequestInit){const r=await fetch(API+path,init);const body=await r.json().catch(()=>null);if(!r.ok)throw new Error(body?.message??body?.title??body??"Request failed");return body;}
+async function api(path:string,init?:RequestInit){const r=await fetch(API+path,init);const raw=await r.text();let body:any=null;try{body=raw?JSON.parse(raw):null;}catch{body=raw;}if(!r.ok){const detail=typeof body==="string"?body:(body?.message??body?.title??body?.detail??body?.errors?JSON.stringify(body):null);throw new Error(detail||`Request failed (${r.status} ${r.statusText})`);}return body;}
 
 export default function ExpenseEntry({employees}:{employees:Employee[]}){
  const [section,setSection]=useState<"my"|"approvals">("my");
