@@ -59,6 +59,11 @@ public sealed class ExpenseController(AnujHrmsDbContext db, ITravelExpensePolicy
         var x=await db.TravelRequests.FirstOrDefaultAsync(x=>x.Id==id,ct);
         if(x is null)return NotFound();
         if(x.Status!="Draft")return BadRequest("Only draft travel requests can be submitted.");
+        // Refresh the approval assignment from the current employee master so older drafts
+        // also pick up a reporting manager configured after the request was created.
+        var travelEmployee = await db.Employees.AsNoTracking().FirstOrDefaultAsync(e=>e.Id==x.EmployeeId && e.IsActive,ct);
+        if(travelEmployee is null)return BadRequest("Employee not found or inactive.");
+        x.ReportingManagerId = travelEmployee.ReportingManagerId;
         if(!x.ReportingManagerId.HasValue)return BadRequest("Employee has no reporting manager configured.");
         var fromStatus = x.Status;
         x.Status="PendingManager"; x.SubmittedAtUtc=DateTime.UtcNow;
@@ -268,6 +273,11 @@ public sealed class ExpenseController(AnujHrmsDbContext db, ITravelExpensePolicy
         var claim=await db.ExpenseClaims.FirstOrDefaultAsync(x=>x.Id==id,ct);
         if(claim is null)return NotFound();
         if(claim.Status!="Draft")return BadRequest("Only draft claims can be submitted.");
+        // Refresh the approval assignment from the current employee master. This also repairs
+        // claims created before the employee's reporting manager was configured.
+        var claimEmployee = await db.Employees.AsNoTracking().FirstOrDefaultAsync(x=>x.Id==claim.EmployeeId && x.IsActive,ct);
+        if(claimEmployee is null)return BadRequest("Employee not found or inactive.");
+        claim.ReportingManagerId = claimEmployee.ReportingManagerId;
         var lines=await db.ExpenseClaimLines.Where(x=>x.ExpenseClaimId==id).ToListAsync(ct);
         if(lines.Count==0)return BadRequest("Add at least one expense line.");
         foreach(var line in lines)
