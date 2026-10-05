@@ -75,6 +75,125 @@ public sealed class ExpenseController(AnujHrmsDbContext db, ITravelExpensePolicy
     public async Task<IActionResult> TravelFinanceDecision(Guid id, [FromBody] DecisionInput input, CancellationToken ct)
         => await TravelDecision(id, input, false, ct);
 
+    [HttpGet("approval-queue")]
+    public async Task<IActionResult> GetApprovalQueue([FromQuery] string role, [FromQuery] Guid employeeId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(role)) return BadRequest("Role is required: manager or finance.");
+        var normalized = role.Trim().ToLowerInvariant();
+
+        if (normalized == "manager")
+        {
+            var travel = await db.TravelRequests.AsNoTracking()
+                .Where(x => x.Status == "PendingManager" && x.ReportingManagerId == employeeId)
+                .OrderByDescending(x => x.SubmittedAtUtc)
+                .ToListAsync(ct);
+            var claims = await db.ExpenseClaims.AsNoTracking()
+                .Where(x => x.Status == "PendingManager" && x.ReportingManagerId == employeeId)
+                .OrderByDescending(x => x.SubmittedAtUtc)
+                .ToListAsync(ct);
+            return Ok(new { travelRequests = travel, claims });
+        }
+
+        if (normalized == "finance")
+        {
+            var financeCode = await GetFinanceApproverCode(ct);
+            var finance = string.IsNullOrWhiteSpace(financeCode)
+                ? null
+                : await db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeCode == financeCode && x.IsActive, ct);
+            if (finance is null) return BadRequest("Configured Finance approver is not an active employee.");
+
+            if (employeeId != finance.Id) return Forbid();
+
+            var travel = await db.TravelRequests.AsNoTracking()
+                .Where(x => x.Status == "PendingFinance")
+                .OrderByDescending(x => x.SubmittedAtUtc)
+                .ToListAsync(ct);
+            var claims = await db.ExpenseClaims.AsNoTracking()
+                .Where(x => x.Status == "PendingFinance")
+                .OrderByDescending(x => x.SubmittedAtUtc)
+                .ToListAsync(ct);
+            return Ok(new { travelRequests = travel, claims });
+        }
+
+        return BadRequest("Unsupported approval role.");
+    }
+
+    [HttpPost("claims/{claimId:guid}/attachments")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> UploadAttachment(Guid claimId, [FromForm] IFormFile file, [FromForm] Guid? lineId, CancellationToken ct)
+    {
+        var claim = await db.ExpenseClaims.FirstOrDefaultAsync(x => x.Id == claimId, ct);
+        if (claim is null) return NotFound("Claim not found.");
+        if (claim.Status != "Draft") return BadRequest("Attachments can only be added to draft claims.");
+        if (file is null || file.Length == 0) return BadRequest("A file is required.");
+        if (file.Length > 10 * 1024 * 1024) return BadRequest("Maximum attachment size is 10 MB.");
+
+        var allowed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["application/pdf"] = ".pdf",
+            ["image/jpeg"] = ".jpg",
+            ["image/png"] = ".png"
+        };
+        if (!allowed.TryGetValue(file.ContentType ?? string.Empty, out var extension))
+            return BadRequest("Only PDF, JPG and PNG attachments are allowed.");
+
+        ExpenseClaimLine? line = null;
+        if (lineId.HasValue)
+        {
+            line = await db.ExpenseClaimLines.FirstOrDefaultAsync(x => x.Id == lineId.Value && x.ExpenseClaimId == claimId, ct);
+            if (line is null) return BadRequest("Expense line not found for this claim.");
+        }
+
+        var root = Path.Combine(AppContext.BaseDirectory, "Uploads", "Expenses", claimId.ToString("N"));
+        Directory.CreateDirectory(root);
+        var storedName = $"{Guid.NewGuid():N}{extension}";
+        var path = Path.Combine(root, storedName);
+        await using (var stream = System.IO.File.Create(path))
+            await file.CopyToAsync(stream, ct);
+
+        var attachment = new ExpenseClaimAttachment
+        {
+            Id = Guid.NewGuid(),
+            ExpenseClaimId = claimId,
+            ExpenseClaimLineId = lineId,
+            OriginalFileName = Path.GetFileName(file.FileName),
+            StoredFileName = storedName,
+            ContentType = file.ContentType,
+            FileSize = file.Length,
+            UploadedAtUtc = DateTime.UtcNow
+        };
+        db.ExpenseClaimAttachments.Add(attachment);
+        if (line is not null) line.AttachmentProvided = true;
+        await db.SaveChangesAsync(ct);
+        return Ok(attachment);
+    }
+
+    [HttpGet("claims/{claimId:guid}/attachments")]
+    public async Task<IActionResult> GetAttachments(Guid claimId, CancellationToken ct)
+    {
+        var exists = await db.ExpenseClaims.AsNoTracking().AnyAsync(x => x.Id == claimId, ct);
+        if (!exists) return NotFound();
+        var rows = await db.ExpenseClaimAttachments.AsNoTracking()
+            .Where(x => x.ExpenseClaimId == claimId)
+            .OrderBy(x => x.UploadedAtUtc)
+            .ToListAsync(ct);
+        return Ok(rows);
+    }
+
+    [HttpGet("claims/{claimId:guid}/attachments/{attachmentId:guid}")]
+    public async Task<IActionResult> DownloadAttachment(Guid claimId, Guid attachmentId, CancellationToken ct)
+    {
+        var attachment = await db.ExpenseClaimAttachments.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == attachmentId && x.ExpenseClaimId == claimId, ct);
+        if (attachment is null) return NotFound();
+
+        var root = Path.Combine(AppContext.BaseDirectory, "Uploads", "Expenses", claimId.ToString("N"));
+        var path = Path.Combine(root, attachment.StoredFileName);
+        if (!System.IO.File.Exists(path)) return NotFound("Attachment file is missing from storage.");
+        var stream = System.IO.File.OpenRead(path);
+        return File(stream, attachment.ContentType, attachment.OriginalFileName);
+    }
+
     [HttpGet("claims")]
     public async Task<IActionResult> GetClaims([FromQuery] Guid? employeeId,CancellationToken ct)
     {
